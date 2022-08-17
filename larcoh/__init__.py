@@ -3,6 +3,7 @@ import logging
 
 import coloredlogs
 from cpg_utils import Path, to_path
+from cpg_utils.config import set_config_paths
 
 coloredlogs.install(
     level='DEBUG', fmt='%(asctime)s %(levelname)s (%(name)s %(lineno)s): %(message)s'
