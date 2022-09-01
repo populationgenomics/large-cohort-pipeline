@@ -17,9 +17,9 @@ from larcoh.pipeline_utils import get_batch, dataproc_job
 logger = logging.getLogger(__file__)
 
 
-def _test_subset(c: Cohort) -> Cohort:
+def _subset_cohort_for_test(c: Cohort) -> Cohort:
     """
-    Subset cohort the cohort for test runs
+    Subset cohort the cohort for test runs.
     """
     original_sample_cnt = len(c.get_samples())
     original_dataset_cnt = len(c.get_datasets())
@@ -46,7 +46,7 @@ def _test_subset(c: Cohort) -> Cohort:
 def main():
     cohort = get_cohort()
     if get_config()['workflow'].get('access_level') == 'test':
-        cohort = _test_subset(cohort)
+        cohort = _subset_cohort_for_test(cohort)
 
     batch = get_batch(cohort)
     jobs: list[Job | None] = []
