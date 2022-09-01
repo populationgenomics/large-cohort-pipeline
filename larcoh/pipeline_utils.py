@@ -8,12 +8,11 @@ from functools import lru_cache
 
 import math
 from analysis_runner import dataproc
-from cpg_pipes.hb.batch import RegisteringBatch, setup_batch
-from cpg_pipes.utils import timestamp, slugify
+from cpg_utils.workflows.batch import Batch, get_batch
+from cpg_utils.workflows.utils import timestamp, slugify
 from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import dataset_path
-from hailtop.batch import Batch
 from hailtop.batch.job import Job
 
 logger = logging.getLogger(__file__)
@@ -33,31 +32,11 @@ DATAPROC_PACKAGES = [
 ]
 
 
-@lru_cache
-def get_batch(cohort) -> RegisteringBatch:
-    """
-    Lazy initialise Batch object.
-    """
-    run_id = get_config()['workflow'].get('run_id', timestamp())
-    analysis_dataset = get_config()['workflow']['dataset']
-    name = get_config()['workflow'].get('name')
-    description = get_config()['workflow'].get('description')
-    sequencing_type = get_config()['workflow']['sequencing_type']
-    name = name or description or analysis_dataset
-    name = slugify(name)
-    description = description or name
-    description += f': run_id={run_id} [{sequencing_type}]'
-    if ds_set := set(d.name for d in cohort.get_datasets()):
-        description += ' ' + ', '.join(sorted(ds_set))
-    return setup_batch(description=description)
-
-
 # GCP quota on number of cores
 MAX_PRIMARY_WORKERS = 50
 
 
 def dataproc_job(
-    batch: Batch,
     script_name: str,
     params: dict,
     preemptible: bool = True,
@@ -102,7 +81,7 @@ def dataproc_job(
     num_primary_workers = min(num_primary_workers, MAX_PRIMARY_WORKERS)
 
     return dataproc.hail_dataproc_job(
-        batch,
+        get_batch(),
         script=f'scripts/{script_name} {param_line}',
         job_name=script_name,
         max_age=max_age,

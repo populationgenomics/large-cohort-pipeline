@@ -2,6 +2,7 @@ import logging
 
 from cpg_utils import Path
 from cpg_utils.config import get_config
+from cpg_utils.workflows.inputs import get_cohort
 from hailtop.batch.job import Job
 
 from larcoh.pipeline_utils import dataproc_job
@@ -10,7 +11,7 @@ from larcoh.query_utils import exists, can_reuse
 logger = logging.getLogger(__file__)
 
 
-def queue_combiner(batch, cohort, out_vds_path: Path) -> Job | None:
+def queue_combiner(out_vds_path: Path) -> Job | None:
     """
     Add VCF combiner jobs, produce VDC.
     """
@@ -34,7 +35,7 @@ def queue_combiner(batch, cohort, out_vds_path: Path) -> Job | None:
     else:
         autoscaling_workers = '50'
 
-    for sample in cohort.get_samples():
+    for sample in get_cohort().get_samples():
         if not sample.gvcf:
             if get_config()['workflow'].get('skip_samples_with_missing_input', False):
                 logger.warning(f'Skipping {sample} which is missing GVCF')
@@ -67,15 +68,14 @@ def queue_combiner(batch, cohort, out_vds_path: Path) -> Job | None:
                     )
 
     logger.info(
-        f'Combining {len(cohort.get_samples())} samples: '
-        f'{", ".join(cohort.get_sample_ids())}'
+        f'Combining {len(get_cohort().get_samples())} samples: '
+        f'{", ".join(get_cohort().get_sample_ids())}'
     )
 
     job = dataproc_job(
-        batch,
         'combine_gvcfs.py',
         params=dict(
-            cohort_tsv=cohort.to_tsv(),
+            cohort_tsv=get_cohort().to_tsv(),
             out_vds=out_vds_path,
         ),
         num_workers=0,

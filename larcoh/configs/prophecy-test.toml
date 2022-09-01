@@ -2,6 +2,7 @@
 access_level = 'test'
 dataset = 'prophecy'
 datasets = ['prophecy']
+only_batches = [1, 2]
 dataset_gcp_project = 'prophecy-339301'
 check_expected_outputs = true
 skip_samples_with_missing_input = true
@@ -16,6 +17,7 @@ vds_version = '0.1'
 
 [dataproc]
 highmem_workers = false
+cluster_id = 'larcoh-test-prophecy'
 
 [hail]
 billing_project = 'prophecy'

@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-import collections
 import logging
 
-from cpg_pipes.inputs import get_cohort
-from cpg_pipes.targets import Cohort
+from cpg_utils.workflows.inputs import get_cohort
 from cpg_utils import to_path
-from cpg_utils.config import get_config
 from cpg_utils.hail_batch import dataset_path
 from hailtop.batch.job import Job
 
@@ -17,54 +14,21 @@ from larcoh.pipeline_utils import get_batch, dataproc_job
 logger = logging.getLogger(__file__)
 
 
-def _subset_cohort_for_test(c: Cohort) -> Cohort:
-    """
-    Subset cohort the cohort for test runs.
-    """
-    original_sample_cnt = len(c.get_samples())
-    original_dataset_cnt = len(c.get_datasets())
-    # Test dataset: collecting all batch1 samples, plus 4 samples from each of other batches
-    samples_by_batch: dict[str, list] = collections.defaultdict(list)
-    for sample in c.get_samples():
-        batch_id = sample.seq_by_type['genome'].meta['batch']
-        if batch_id != '1' and len(samples_by_batch[batch_id]) > 4:
-            sample.active = False
-            continue
-        samples_by_batch[batch_id].append(sample)
-    logger.info(
-        f'After subset: {len(c.get_samples())}/{original_sample_cnt} samples, '
-        f'{len(samples_by_batch)} batches, '
-        f'{len(c.get_datasets())}/{original_dataset_cnt} datasets'
-    )
-    logger.info(
-        f'Using {len(c.get_samples())} samples '
-        f'from {len(c.get_datasets())} datasets'
-    )
-    return c
-
-
 def main():
-    cohort = get_cohort()
-    if get_config()['workflow'].get('access_level') == 'test':
-        cohort = _subset_cohort_for_test(cohort)
-
-    batch = get_batch(cohort)
     jobs: list[Job | None] = []
 
     # COMBINER
     vds_path = to_path(dataset_path(f'vds/{vds_version}.vds'))
-    combiner_job = combiner.queue_combiner(batch, cohort, vds_path)
-    jobs.append(combiner_job)
+    jobs.append(combiner.queue_combiner(out_vds_path=vds_path))
 
     # SAMPLE QC
     sample_qc_ht_path = out_prefix / 'sample_qc.ht'
     if not can_reuse(sample_qc_ht_path):
         sample_qc_hard_filters_job = dataproc_job(
-            batch,
             'sample_qc.py',
             params=dict(
                 vds=vds_path,
-                cohort_tsv=cohort.to_tsv(),
+                cohort_tsv=get_cohort().to_tsv(),
                 out_ht_path=sample_qc_ht_path,
             ),
             depends_on=jobs,
@@ -74,7 +38,6 @@ def main():
     dense_subset_mt_path = out_prefix / 'dense-subset.mt'
     if not can_reuse(dense_subset_mt_path):
         sample_qc_subset_mt_for_pca_job = dataproc_job(
-            batch,
             f'make_dense_subset.py',
             params=dict(
                 vds=vds_path,
@@ -87,7 +50,6 @@ def main():
     relatedness_ht_path = out_prefix / 'relatedness.mt'
     if not can_reuse(relatedness_ht_path):
         sample_qc_subset_mt_for_pca_job = dataproc_job(
-            batch,
             f'pcrelate.py',
             params=dict(
                 mt=dense_subset_mt_path,
@@ -98,7 +60,7 @@ def main():
         )
         jobs.append(sample_qc_subset_mt_for_pca_job)
 
-    batch.run(wait=False)
+    get_batch().run(wait=False)
 
     # relatedness_ht_path = join(relatedness_bucket, 'relatedness.ht')
     #     job_name = 'Run pc_relate'
