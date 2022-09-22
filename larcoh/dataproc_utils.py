@@ -1,18 +1,13 @@
 """
-Utility functions for the pipeline orchestration code. Depend on cpg-pipes 
-and python 3.10, hence not importable in Dataproc scripts.
+Utils for submitting the workflow to a Dataproc cluster.
 """
 
 import logging
-from functools import lru_cache
-
 import math
+
 from analysis_runner import dataproc
-from cpg_utils.workflows.batch import Batch, get_batch
-from cpg_utils.workflows.utils import timestamp, slugify
-from cpg_utils import to_path
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import dataset_path
+from cpg_utils.workflows.batch import get_batch
 from hailtop.batch.job import Job
 
 logger = logging.getLogger(__file__)

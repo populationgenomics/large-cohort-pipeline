@@ -11,6 +11,7 @@ repos:
   - id: detect-private-key
   - id: debug-statements
   - id: check-added-large-files
+    exclude: '\.*.interval_list'
 
 - repo: https://gitlab.com/pycqa/flake8
   rev: '3.9.2'

@@ -1,15 +1,13 @@
 import importlib.metadata
-import logging
+import os
 
 import coloredlogs
 from cpg_utils import Path, to_path
 from cpg_utils.config import set_config_paths
 
 coloredlogs.install(
-    level='DEBUG', fmt='%(asctime)s %(levelname)s (%(name)s %(lineno)s): %(message)s'
+    level='INFO', fmt='%(asctime)s %(levelname)s (%(name)s %(lineno)s): %(message)s'
 )
-
-logger = logging.getLogger(__file__)
 
 
 def get_package_name() -> str:
@@ -31,3 +29,15 @@ def get_version() -> str:
     Get package version.
     """
     return importlib.metadata.version(get_package_name())
+
+
+def load_config():
+    larcoh_config_path = get_package_path() / 'configs' / 'larcoh.toml'
+    assert larcoh_config_path.exists(), larcoh_config_path
+    config_paths = [str(larcoh_config_path)]
+    if _cpg_config_path_env_var := os.environ.get('CPG_CONFIG_PATH'):
+        config_paths = _cpg_config_path_env_var.split(',') + config_paths
+    set_config_paths(list(config_paths))
+
+
+load_config()

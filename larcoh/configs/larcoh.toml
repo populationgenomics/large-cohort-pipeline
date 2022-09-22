@@ -2,21 +2,21 @@
 scatter_count = 50
 output_version = '0.1'
 
-[larhoc.hardfiltering]
+[larcoh]
+# minimum random forest probability for population assignment
+min_pop_prob = 0.5
+# maximum kin threshold to be considered unrelated
+max_kin = 0.2
+# sample metadata tag to get population label (continental_pop, subcontinental_pop)
+pop_tag = 'continental_pop'
+
+[larhoc.sample_qc_cutoffs]
 min_coverage = 18
 max_n_snps = 8000000
 min_n_snps = 2400000
 max_n_singletons = 800000
 max_r_duplication = 0.3
 max_r_het_hom = 3.3
-max_r_contamination = 0.04
-min_insert_size = 250
-
-[larhoc.pca]
-# maximum kin threshold to be considered unrelated
-max_kin = 0.2
-# minimum Random Forest probability for population assignment
-min_pop_prob = 0.5
 
 [larhoc.vqsr]
 # VQSR, when applying model, targets indel_filter_level and snp_filter_level
@@ -30,4 +30,16 @@ pool_label = 'large-cohort'
 delete_scratch_on_exit = false
 
 [references]
-ancestry_ht = 'ancestry/v3-90k/pca_sites.ht'
+gencode_gtf = 'gencode/gencode.v39.annotation.gtf.bgz'
+
+[references.gnomad]
+prefix = 'gnomad/v0'
+tel_and_cent_ht = 'telomeres_and_centromeres/hg38.telomeresAndMergedCentromeres.ht'
+lcr_intervals_ht = 'lcr_intervals/LCRFromHengHg38.ht'
+seg_dup_intervals_ht = 'seg_dup_intervals/GRCh38_segdups.ht'
+clinvar_ht = 'clinvar/clinvar_20190923.ht'
+hapmap_ht = 'hapmap/hapmap_3.3.hg38.ht'
+kgp_omni_ht = 'kgp/1000G_omni2.5.hg38.ht'
+kgp_hc_ht = 'kgp/1000G_phase1.snps.high_confidence.hg38.ht'
+mills_ht = 'mills/Mills_and_1000G_gold_standard.indels.hg38.ht'
+predetermined_qc_variants = 'sample_qc/pre_ld_pruning_qc_variants.ht'

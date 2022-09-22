@@ -1,0 +1,6 @@
+[workflow]
+path_scheme = 'local'
+reference_prefix = 'data/reference'
+
+[hail]
+query_backend = 'spark_local'
