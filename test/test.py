@@ -23,10 +23,15 @@ access_level = 'test'
 sequencing_type = 'genome'
 output_version = '1.0'
 check_intermediates = true
+# Local backend:
+path_scheme = 'local'
+reference_prefix = 'data/reference'
 
 [hail]
 billing_project = 'thousand-genomes'
 dry_run = true
+# Local backend:
+query_backend = 'spark_local'
 """
 
 
@@ -37,20 +42,22 @@ def _set_config(dir_path: Path, extra_conf: dict | None = None):
     print(d)
     with (out_path := dir_path / 'config.toml').open('w') as f:
         toml.dump(d, f)
-    set_config_paths(['local.toml', str(out_path)])
+    set_config_paths([str(out_path)])
 
 
 def test_larcoh(mocker: MockFixture, tmpdir: str):
     """
     Run entire workflow in a local mode.
     """
-    results_dir_path = to_path('results') / os.getenv('TEST_TIMESTAMP', timestamp())
+    results_dir_path = (
+        to_path(__file__).parent / 'results' / os.getenv('TEST_TIMESTAMP', timestamp())
+    )
 
     _set_config(
         to_path(tmpdir),
         extra_conf={
             'workflow': {
-                'local_dir': str(results_dir_path),
+                'local_dir': str(results_dir_path.absolute()),
             },
             'combiner': {
                 'intervals': ['chr20:start-end', 'chrX:start-end', 'chrY:start-end'],
@@ -60,8 +67,10 @@ def test_larcoh(mocker: MockFixture, tmpdir: str):
 
     cohort = Cohort()
     ds = cohort.create_dataset('thousand-genomes')
-    gvcf_paths = [to_path(p) for p in glob.glob('data/gvcf/*.g.vcf.gz')]
-    for gvcf_path in gvcf_paths:
+    gvcf_root = to_path(__file__).parent / 'data' / 'gvcf'
+    found_gvcf_paths = list(gvcf_root.glob('*.g.vcf.gz'))
+    assert len(found_gvcf_paths) > 0, gvcf_root
+    for gvcf_path in found_gvcf_paths:
         sample_id = gvcf_path.name.split('.')[0]
         s = ds.add_sample(id=sample_id, external_id=sample_id.replace('CPG', 'EXT'))
         s.gvcf = GvcfPath(gvcf_path)

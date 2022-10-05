@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import os
-from os.path import join
 import setuptools
 
 
@@ -16,16 +14,15 @@ setuptools.setup(
     license='MIT',
     packages=['larcoh'],
     package_data={
-        'larcoh': ['configs/config-template.toml'],
+        'larcoh': ['configs/larcoh.toml'],
     },
     include_package_data=True,
     zip_safe=False,
-    keywords='bioinformatics',
     install_requires=[
         'cpg-utils',
         'cpg-gnomad',
         'analysis-runner',
-        'sample_metadata',
+        'sample-metadata',
         'hail',
         'pandas',
         'click',
@@ -33,6 +30,7 @@ setuptools.setup(
         'google-cloud-secret-manager',
         'coloredlogs',
     ],
+    keywords='bioinformatics',
     classifiers=[
         'Environment :: Console',
         'Intended Audience :: Science/Research',
