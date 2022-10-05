@@ -61,7 +61,7 @@ def check_duplicates(iterable):
     return duplicates
 
 
-def combine() -> hl.vds.VariantDataset:
+def run() -> hl.vds.VariantDataset:
     out_vds_path = parameters.vds_path
     tmp_prefix = parameters.tmp_prefix / 'combiner'
 

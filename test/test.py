@@ -59,22 +59,32 @@ def test_larcoh(mocker: MockFixture, tmpdir: str):
     )
 
     cohort = Cohort()
-    ds = cohort.create_dataset('test-input-dataset')
+    ds = cohort.create_dataset('thousand-genomes')
     gvcf_paths = [to_path(p) for p in glob.glob('data/gvcf/*.g.vcf.gz')]
     for gvcf_path in gvcf_paths:
-        sample_name = gvcf_path.name.split('.')[0]
-        s = ds.add_sample(id=sample_name)
+        sample_id = gvcf_path.name.split('.')[0]
+        s = ds.add_sample(id=sample_id, external_id=sample_id.replace('CPG', 'EXT'))
         s.gvcf = GvcfPath(gvcf_path)
 
     mocker.patch('cpg_utils.workflows.inputs.create_cohort', lambda: cohort)
 
-    from larcoh import combiner, sample_qc, dense_subset, relatedness
+    from larcoh import (
+        combiner,
+        sample_qc,
+        dense_subset,
+        relatedness,
+        ancestry_pca,
+        ancestry_plots,
+    )
     from larcoh.utils import start_hail_context
 
     start_hail_context()
-    combiner.combine()
+    combiner.run()
     sample_qc.run()
-    dense_subset.make_dense_subset()
+    dense_subset.run()
     relatedness.pcrelate()
+    relatedness.flag_related()
+    ancestry_pca.run()
+    ancestry_plots.run()
 
     assert exists(to_path(dataset_path(f'vds/v1-0.vds')))

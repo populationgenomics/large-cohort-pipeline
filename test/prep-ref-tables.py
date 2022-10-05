@@ -36,24 +36,23 @@ for path in [
     'gnomad/v0/kgp/1000G_omni2.5.hg38.ht',
     'gnomad/v0/kgp/1000G_phase1.snps.high_confidence.hg38.ht',
     'gnomad/v0/mills/Mills_and_1000G_gold_standard.indels.hg38.ht',
-    'gnomad/v0/sample_qc/pre_ld_pruning_qc_variants.ht/pre_ld_pruning_qc_variants.ht',
+    'gnomad/v0/sample_qc/pre_ld_pruning_qc_variants.ht',
 ]:
     src_path = src_prefix / path
     dst_path = dst_prefix / path
 
-    if not exists(dst_path):
-        if src_path.suffix == '.ht':
-            ht = hl.read_table(str(src_path))
-            ht.describe()
-            # noinspection PyProtectedMember
-            if 'interval' in ht._fields:
-                ht = ht.filter(hl.is_defined(intervals_ht[ht.interval]))
-            else:
-                # noinspection PyProtectedMember
-                assert 'locus' in ht._fields
-                ht = ht.filter(hl.is_defined(intervals_ht[ht.locus]))
-            ht = ht.naive_coalesce(1)
-            ht.write(str(dst_path), overwrite=True)
-
-        else:
-            raise ValueError(f'Unrecognised extension: {src_path}')
+    if exists(dst_path):
+        continue
+    if not src_path.suffix == '.ht':
+        raise ValueError(f'Unrecognised extension: {src_path}')
+    ht = hl.read_table(str(src_path))
+    ht.describe()
+    # noinspection PyProtectedMember
+    if 'interval' in ht._fields:
+        ht = ht.filter(hl.is_defined(intervals_ht[ht.interval]))
+    else:
+        # noinspection PyProtectedMember
+        assert 'locus' in ht._fields
+        ht = ht.filter(hl.is_defined(intervals_ht[ht.locus]))
+    ht = ht.naive_coalesce(1)
+    ht.write(str(dst_path), overwrite=True)

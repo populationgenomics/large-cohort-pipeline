@@ -1,6 +1,5 @@
 import logging
 import hail as hl
-from cpg_utils import Path
 from cpg_utils.config import get_config
 from cpg_utils.workflows.utils import can_reuse
 from gnomad.sample_qc.relatedness import compute_related_samples_to_drop
@@ -36,7 +35,7 @@ def pcrelate() -> hl.Table:
         _, scores_ht, _ = hl.hwe_normalized_pca(
             mt.GT, k=max(1, min(sample_num // 3, 10)), compute_loadings=False
         )
-        scores_ht.checkpoint(scores_ht_path, overwrite=True)
+        scores_ht.checkpoint(str(scores_ht_path), overwrite=True)
 
     relatedness_ht = hl.pc_relate(
         mt.GT,
@@ -61,7 +60,7 @@ def flag_related() -> hl.Table:
     """
     sample_ht = hl.read_table(str(parameters.sample_qc_ht_path))
     relatedness_ht = hl.read_table(str(parameters.relatedness_ht_path))
-    out_ht_path = parameters.relateds_to_drop
+    out_ht_path = parameters.relateds_to_drop_ht_path
 
     logging.info(f'Flagging related samples to drop')
     if can_reuse(out_ht_path):
@@ -69,11 +68,11 @@ def flag_related() -> hl.Table:
 
     rankings_ht_path = parameters.tmp_prefix / 'relatedness' / f'samples_rankings.ht'
     if can_reuse(rankings_ht_path):
-        rank_ht = hl.read_table(rankings_ht_path)
+        rank_ht = hl.read_table(str(rankings_ht_path))
     else:
         rank_ht = _compute_sample_rankings(
             sample_ht=sample_ht,
-        ).checkpoint(rankings_ht_path, overwrite=True)
+        ).checkpoint(str(rankings_ht_path), overwrite=True)
 
     try:
         filtered_samples = hl.literal(
@@ -86,16 +85,17 @@ def flag_related() -> hl.Table:
         # the samples is 'filtered'
         filtered_samples = hl.empty_array(hl.tstr)
 
-    samples_to_drop_ht = compute_related_samples_to_drop(
+    to_drop_ht = compute_related_samples_to_drop(
         relatedness_ht,
         rank_ht,
         kin_threshold=get_config()['larcoh']['max_kin'],
         filtered_samples=filtered_samples,
     )
-    samples_to_drop_ht = samples_to_drop_ht.checkpoint(str(out_ht_path), overwrite=True)
+    to_drop_ht = to_drop_ht.checkpoint(str(out_ht_path), overwrite=True)
     sample_ht.annotate(
-        related=hl.is_defined(samples_to_drop_ht[sample_ht.key]),
+        related=hl.is_defined(to_drop_ht[sample_ht.key]),
     )
+    return sample_ht
 
 
 def _compute_sample_rankings(

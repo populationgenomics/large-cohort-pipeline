@@ -105,7 +105,7 @@ def _infer_pop_labels(
     """
     out_ht_path = out_ht_path or tmp_prefix / 'inferred_pop.ht'
     if can_reuse(out_ht_path):
-        return hl.read_table(out_ht_path)
+        return hl.read_table(str(out_ht_path))
 
     if training_pop_ht.count() < 2:
         logging.warning(
@@ -117,7 +117,7 @@ def _infer_pop_labels(
             is_training=False,
             pca_scores=scores_ht.scores,
         )
-        return pop_ht.checkpoint(out_ht_path, overwrite=True)
+        return pop_ht.checkpoint(str(out_ht_path), overwrite=True)
 
     logging.info(
         'Using calculated PCA scores as well as training samples with known '
@@ -179,10 +179,10 @@ def _infer_pop_labels(
             pickle.dump(pops_rf_model, out)
 
     pop_ht = pop_ht.annotate(is_training=hl.is_defined(training_pop_ht[pop_ht.key]))
-    return pop_ht.checkpoint(out_ht_path, overwrite=True)
+    return pop_ht.checkpoint(str(out_ht_path), overwrite=True)
 
 
-def run_pca() -> tuple[hl.Table, hl.Table, hl.Table, hl.Table]:
+def run() -> tuple[hl.Table, hl.Table, hl.Table, hl.Table]:
     """
     Run PCA, and return 4 hail tables:
     * scores,
@@ -199,6 +199,7 @@ def run_pca() -> tuple[hl.Table, hl.Table, hl.Table, hl.Table]:
     n_pcs = 16
     mt = hl.read_matrix_table(str(parameters.dense_mt_path))
     sample_ht = hl.read_table(str(parameters.sample_qc_ht_path))
+    relateds_to_drop_ht = hl.read_table(str(parameters.relateds_to_drop_ht_path))
     tmp_prefix = parameters.tmp_prefix / 'ancestry'
     out_scores_ht_path = parameters.scores_ht_path
     out_eigenvalues_ht_path = parameters.eigenvalues_ht_path
@@ -211,7 +212,7 @@ def run_pca() -> tuple[hl.Table, hl.Table, hl.Table, hl.Table]:
     )
     scores_ht, eigenvalues_ht, loadings_ht = _run_pca_ancestry_analysis(
         mt=mt,
-        sample_to_drop_ht=sample_ht.filter(sample_ht.related),
+        sample_to_drop_ht=relateds_to_drop_ht,
         n_pcs=n_pcs,
         out_scores_ht_path=out_scores_ht_path,
         out_eigenvalues_ht_path=out_eigenvalues_ht_path,

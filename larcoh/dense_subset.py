@@ -7,7 +7,7 @@ from cpg_utils.workflows.utils import can_reuse
 from larcoh import parameters
 
 
-def make_dense_subset() -> hl.MatrixTable:
+def run() -> hl.MatrixTable:
     """
     Filter a sparse VariantDataset to a set of predetermined QC sites
     and return a dense MatrixTable with split multiallelics.

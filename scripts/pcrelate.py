@@ -10,5 +10,4 @@ from larcoh.utils import start_hail_context
 
 def main():
     start_hail_context()
-
     relatedness.pcrelate()

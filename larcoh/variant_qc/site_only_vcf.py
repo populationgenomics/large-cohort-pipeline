@@ -4,24 +4,41 @@
 Convert to site-only table and annotate with AS fields.
 """
 
-import logging
 import hail as hl
 from cpg_utils import Path
 from cpg_utils.workflows.utils import can_reuse
 from gnomad.utils.vcf import adjust_vcf_incompatible_types
 from gnomad.utils.sparse_mt import default_compute_info
 
+from larcoh import parameters
 
-def vds_to_sites_only_ht(
-    vds: hl.vds.VariantDataset,
-    sample_ht: hl.Table,
-    out_ht_path: Path,
-) -> hl.Table:
+
+def site_only_ht_to_vcf():
+    vqsr_prefix = parameters.tmp_prefix / 'vqsr'
+    site_only_ht_path = vqsr_prefix / 'site_only.ht'
+    out_vcf_path = vqsr_prefix / 'site_only.vcf.gz'
+
+    if can_reuse(out_vcf_path):
+        return out_vcf_path
+
+    hl.export_vcf(hl.read_table(site_only_ht_path), out_vcf_path)
+
+
+def vds_to_site_only_ht() -> hl.Table:
     """
     Convert VDS into sites-only VCF-ready table.
     """
+    vqsr_prefix = parameters.tmp_prefix / 'vqsr'
+    out_ht_path = vqsr_prefix / 'site_only.ht'
+
     if can_reuse(out_ht_path):
         return hl.read_table(str(out_ht_path))
+
+    vds = hl.vds.read_vds(str(parameters.vds_path))
+    sample_ht = hl.read_table(str(parameters.sample_qc_ht_path))
+    related_to_drop = hl.read_table(str(parameters.relateds_to_drop_ht_path))
+    sample_ht.annotate(related=hl.is_defined(related_to_drop[sample_ht.key]))
+
     mt = vds.variant_data
     mt = mt.filter_cols(sample_ht[mt.col_key].filtered, keep=False)
     mt = mt.filter_cols(sample_ht[mt.col_key].related, keep=False)

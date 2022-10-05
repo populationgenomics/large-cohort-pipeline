@@ -20,36 +20,14 @@ from cpg_utils.hail_batch import reference_path, genome_build
 from larcoh import parameters
 
 
-def summarize_projects_by_pop(ht):
-    """
-    Make labels that split samples for a population by dataset
-    """
-    cnts_by_pop = dict()
-    data = ht.select('pop', 'project').collect()
-    for d in data:
-        if d.pop not in cnts_by_pop:
-            cnts_by_pop[d.pop] = dict()
-        if d.project not in cnts_by_pop[d.pop]:
-            cnts_by_pop[d.pop][d.project] = 0
-        cnts_by_pop[d.pop][d.project] += 1
-
-    summary_by_pop = {
-        pop: ', '.join(f'{project}: {cnt}' for project, cnt in sorted(proj_d.items()))
-        for pop, proj_d in cnts_by_pop.items()
-    }
-    summary_by_pop = {k: v for k, v in summary_by_pop.items() if k}
-    summary_by_pop = hl.literal(summary_by_pop)
-    return summary_by_pop
-
-
 BG_LABEL = 'Provided ancestry (1KG+HGDP)'
 FG_LABEL = 'Inferred ancestry'
 
 
-def produce_plots(num_pcs_to_plot: int = None):
+def run(num_pcs_to_plot: int = None):
     """
     Generate plots in HTML format, write for each PC (of n_pcs) and
-    scope ("project", "population") plus for loadings) into
+    scope ("dataset", "population") plus for loadings) into
     file paths defined by `out_path_pattern`.
     """
     ancestry_web_bucket = parameters.web_prefix / 'ancestry'
@@ -59,7 +37,7 @@ def produce_plots(num_pcs_to_plot: int = None):
     loadings_ht = hl.read_table(str(parameters.loadings_ht_path))
     inferred_pop_ht = hl.read_table(str(parameters.inferred_pop_ht_path))
 
-    out_path_pattern = ancestry_web_bucket / '{scope}_pc{pci}.{ext}'
+    out_path_pattern = str(ancestry_web_bucket / '{scope}_pc{pci}.{ext}')
 
     scores_ht = scores_ht.annotate(
         pop=inferred_pop_ht[scores_ht.s].pop,
@@ -114,11 +92,11 @@ def produce_plots(num_pcs_to_plot: int = None):
     plots = []
 
     sample_names = ht.s.collect()
-    projects = ht.project.collect()
+    datasets = ht.dataset.collect()
     is_training = ht.is_training.collect()
 
     for scope, title, labels in [
-        ('project', 'Project', projects),
+        ('dataset', 'Dataset', datasets),
         ('population', 'Population', ht.pop.collect()),
     ]:
         plots.extend(
@@ -129,7 +107,7 @@ def produce_plots(num_pcs_to_plot: int = None):
                 number_of_pcs=num_pcs_to_plot,
                 variance=variance,
                 ht=ht,
-                projects=projects,
+                datasets=datasets,
                 is_training=is_training,
                 sample_names=sample_names,
                 out_path_pattern=out_path_pattern,
@@ -150,7 +128,7 @@ def _plot_pca(
     number_of_pcs,
     variance,
     ht,
-    projects,
+    datasets,
     sample_names,
     is_training,
     out_path_pattern=None,
@@ -178,7 +156,7 @@ def _plot_pca(
                 y=ht.scores[pc2].collect(),
                 label=labels,
                 samples=sample_names,
-                project=projects,
+                dataset=datasets,
                 is_training=[
                     {True: BG_LABEL, False: FG_LABEL}.get(v) for v in is_training
                 ],
@@ -332,3 +310,25 @@ def remove_duplicates(x: Iterable) -> List:
     Removes duplicates from a list, keeps order
     """
     return list(dict.fromkeys(x))
+
+
+def summarize_datasets_by_pop(ht):
+    """
+    Make labels that split samples for a population by dataset
+    """
+    cnts_by_pop = dict()
+    data = ht.select('pop', 'dataset').collect()
+    for d in data:
+        if d.pop not in cnts_by_pop:
+            cnts_by_pop[d.pop] = dict()
+        if d.dataset not in cnts_by_pop[d.pop]:
+            cnts_by_pop[d.pop][d.dataset] = 0
+        cnts_by_pop[d.pop][d.dataset] += 1
+
+    summary_by_pop = {
+        pop: ', '.join(f'{dataset}: {cnt}' for dataset, cnt in sorted(ds_d.items()))
+        for pop, ds_d in cnts_by_pop.items()
+    }
+    summary_by_pop = {k: v for k, v in summary_by_pop.items() if k}
+    summary_by_pop = hl.literal(summary_by_pop)
+    return summary_by_pop

@@ -33,7 +33,7 @@ MAX_PRIMARY_WORKERS = 50
 
 def dataproc_job(
     script_name: str,
-    params: dict,
+    params: dict | None = None,
     preemptible: bool = True,
     phantomjs: bool = True,
     num_workers: int | None = None,
@@ -46,8 +46,12 @@ def dataproc_job(
     """
     Submit script as a dataproc job.
     """
-    param_line = ' '.join(
-        f'--{k.replace("_", "-")} {v}' for k, v in params.items() if v is not None
+    param_line = (
+        ' '.join(
+            f'--{k.replace("_", "-")} {v}' for k, v in params.items() if v is not None
+        )
+        if params
+        else ''
     )
     if num_workers is None:
         num_workers = get_config()['workflow']['scatter_count']
@@ -57,7 +61,10 @@ def dataproc_job(
     depends_on = depends_on or []
     depends_on = [j for j in depends_on if j is not None]
 
-    if preemptible:
+    if autoscaling_policy:
+        num_secondary_workers = 0
+        num_primary_workers = 0
+    elif preemptible:
         num_secondary_workers = num_workers
         # number of primary workers has to be 5-10% of the number of secondary workers:
         # see Tim's comment in https://discuss.hail.is/t/all-nodes-are-unhealthy/1764

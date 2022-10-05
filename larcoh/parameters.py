@@ -15,7 +15,7 @@ vds_path = to_path(dataset_path(f'vds/{vds_version}.vds'))
 sample_qc_ht_path = out_prefix / 'sample_qc.ht'
 dense_mt_path = out_prefix / 'dense-subset.mt'
 relatedness_ht_path = out_prefix / 'relatedness.ht'
-relateds_to_drop = out_prefix / 'relateds-to-drop.ht'
+relateds_to_drop_ht_path = out_prefix / 'relateds-to-drop.ht'
 
 ancestry_prefix = out_prefix / 'ancestry'
 eigenvalues_ht_path = ancestry_prefix / 'eigenvalues.ht'

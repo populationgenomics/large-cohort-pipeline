@@ -1,0 +1,18 @@
+[workflow]
+dataset = 'prophecy'
+datasets = ['prophecy']
+access_level = 'full'
+dataset_gcp_project = 'prophecy-339301'
+sequencing_type = 'genome'
+skip_samples = [
+  'CPG216275',  # https://batch.hail.populationgenomics.org.au/batches/74382
+  'CPG216010',  # https://batch.hail.populationgenomics.org.au/batches/74382
+  'CPG214858',  # missing GVCF
+  'CPG216481',  # missing GVCF
+]
+scatter_count = 20
+output_version = '0.1'
+vds_version = '0.1'
+
+[hail]
+billing_project = 'prophecy'

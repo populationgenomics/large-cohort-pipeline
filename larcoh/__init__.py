@@ -36,7 +36,7 @@ def load_config():
     assert larcoh_config_path.exists(), larcoh_config_path
     config_paths = [str(larcoh_config_path)]
     if _cpg_config_path_env_var := os.environ.get('CPG_CONFIG_PATH'):
-        config_paths = _cpg_config_path_env_var.split(',') + config_paths
+        config_paths = config_paths + _cpg_config_path_env_var.split(',')
     set_config_paths(list(config_paths))
 
 

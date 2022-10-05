@@ -61,7 +61,7 @@ def initialise_sample_table() -> hl.Table:
         }
         for s in get_cohort().get_samples()
     ]
-    t = 'array<struct{s: str, gvcf: str, sex: str, continental_pop: str, subcontinental_pop: str}>'
+    t = 'array<struct{s: str, external_id: str, dataset: str, gvcf: str, sex: str, continental_pop: str, subcontinental_pop: str}>'
     ht = hl.Table.parallelize(hl.literal(a, t), key='s')
     return ht
 
@@ -71,7 +71,7 @@ def impute_sex(vds: hl.vds.VariantDataset, ht: hl.Table) -> hl.Table:
     Impute sex based on coverage.
     """
     checkpoint_path = parameters.tmp_prefix / 'sample_qc' / 'sex.ht'
-    if can_reuse(checkpoint_path):
+    if can_reuse(str(checkpoint_path)):
         sex_ht = hl.read_table(str(checkpoint_path))
         return ht.annotate(**sex_ht[ht.s])
 

@@ -10,10 +10,8 @@ logger = logging.getLogger(__file__)
 
 def main():
     start_hail_context()
-
     sample_qc.run()
-
-    dense_subset.make_dense_subset()
+    dense_subset.run()
 
 
 if __name__ == '__main__':

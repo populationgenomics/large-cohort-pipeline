@@ -10,10 +10,9 @@ logger = logging.getLogger(__file__)
 
 def main():
     start_hail_context()
-
     relatedness.flag_related()
-    ancestry_pca.run_pca()
-    ancestry_plots.produce_plots()
+    ancestry_pca.run()
+    ancestry_plots.run()
 
 
 if __name__ == '__main__':
