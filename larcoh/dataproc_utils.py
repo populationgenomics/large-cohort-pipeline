@@ -95,7 +95,7 @@ def dataproc_job(
         get_batch(),
         script=(
             f'scripts/dataproc_script.py '
-            f'{function.__module__}.{function.__name__} '
+            f'{function.__module__} {function.__name__} '
             f'{" ".join([str(p) for p in function_path_args])}'
         ),
         job_name=job_name,
