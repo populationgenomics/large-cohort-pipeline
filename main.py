@@ -69,6 +69,8 @@ def main(config_paths: list[str]):
     Run a workflow, using CONFIG_PATHS in the order specified, overriding
     $CPG_CONFIG_PATH if specified.
     """
+    larcoh_config_path = to_path(__file__).parent / 'configs' / 'larcoh.toml'
+    assert larcoh_config_path.exists(), larcoh_config_path
     if _env_var := os.environ.get('CPG_CONFIG_PATH'):
         config_paths = _env_var.split(',') + list(config_paths)
     set_config_paths(list(config_paths))

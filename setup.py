@@ -13,9 +13,6 @@ setuptools.setup(
     url='https://github.com/populationgenomics/large-cohort-pipeline',
     license='MIT',
     packages=['larcoh'],
-    package_data={
-        'larcoh': ['larcoh.toml'],
-    },
     include_package_data=True,
     zip_safe=False,
     install_requires=[

@@ -19,7 +19,9 @@ def _set_config(dir_path: Path, extra_conf: dict | None = None):
     results_dir_path = (
         to_path(__file__).parent / 'results' / os.getenv('TEST_TIMESTAMP', timestamp())
     )
-    d = {
+    with (to_path(__file__).parent.parent / 'configs' / 'larcoh.toml').open() as f:
+        d = toml.load(f)
+    d |= {
         'workflow': {
             'local_dir': str(results_dir_path.absolute()),
             'dataset_gcp_project': 'thousand-genomes',
