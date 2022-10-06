@@ -14,7 +14,7 @@ setuptools.setup(
     license='MIT',
     packages=['larcoh'],
     package_data={
-        'larcoh': ['configs/larcoh.toml'],
+        'larcoh': ['larcoh.toml'],
     },
     include_package_data=True,
     zip_safe=False,

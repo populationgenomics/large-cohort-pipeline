@@ -32,7 +32,7 @@ def get_version() -> str:
 
 
 def load_config():
-    larcoh_config_path = get_package_path() / 'configs' / 'larcoh.toml'
+    larcoh_config_path = get_package_path() / 'larcoh.toml'
     assert larcoh_config_path.exists(), larcoh_config_path
     config_paths = [str(larcoh_config_path)]
     if _cpg_config_path_env_var := os.environ.get('CPG_CONFIG_PATH'):

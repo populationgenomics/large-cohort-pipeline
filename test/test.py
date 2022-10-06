@@ -1,7 +1,6 @@
 """
 Test Hail Query functions.
 """
-import glob
 import os
 from os.path import exists
 

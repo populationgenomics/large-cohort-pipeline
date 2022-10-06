@@ -3,12 +3,6 @@ import click
 import coloredlogs
 
 from cpg_utils.config import get_config, set_config_paths
-from cpg_utils.workflows.batch import get_batch
-from cpg_utils.workflows.inputs import get_cohort
-
-from larcoh import parameters
-from larcoh.dataproc_utils import dataproc_job
-from larcoh.variant_qc.hb_vqsr_jobs import hb_vqsr_jobs
 
 fmt = '%(asctime)s %(levelname)s (%(name)s %(lineno)s): %(message)s'
 coloredlogs.install(level='INFO', fmt=fmt)
@@ -21,9 +15,12 @@ def main(config_paths: list[str]):
     Run a workflow, using CONFIG_PATHS in the order specified, overriding
     $CPG_CONFIG_PATH if specified.
     """
-    if _cpg_config_path_env_var := os.environ.get('CPG_CONFIG_PATH'):
-        config_paths = _cpg_config_path_env_var.split(',') + list(config_paths)
+    if _env_var := os.environ.get('CPG_CONFIG_PATH'):
+        config_paths = _env_var.split(',') + list(config_paths)
     set_config_paths(list(config_paths))
+
+    # Can't import it before all configs are set.
+    from larcoh.dataproc_utils import dataproc_job
 
     scatter_count = get_config()['workflow'].get('scatter_count', 50)
     if scatter_count > 100:
@@ -64,17 +61,9 @@ def main(config_paths: list[str]):
         depends_on=[combiner_j, sample_qc_j],
     )
 
-    vqsr_prefix = parameters.tmp_prefix / 'vqsr'
-    site_only_vcf_path = vqsr_prefix / 'site_only.vcf.gz'
-    vqsr_site_only_vcf_path = vqsr_prefix / 'vqsr.vcf.gz'
+    from larcoh.variant_qc.hb_vqsr_jobs import add_vqsr_jobs
 
-    vqsr_jobs = hb_vqsr_jobs(
-        b=get_batch(),
-        input_siteonly_vcf_path=site_only_vcf_path,
-        tmp_prefix=vqsr_prefix / 'tmp',
-        gvcf_count=len(get_cohort().get_samples()),
-        out_path=vqsr_site_only_vcf_path,
-    )
+    vqsr_jobs = add_vqsr_jobs()
     for j in vqsr_jobs:
         j.depends_on(siteonly_vcf_j)
 
