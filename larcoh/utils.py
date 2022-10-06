@@ -6,10 +6,8 @@ cpg-pipes and python 3.10.
 import asyncio
 import os
 import typing
-from dataclasses import dataclass
 
 import hail as hl
-from cpg_utils import to_path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import genome_build, dataset_path
 
@@ -53,48 +51,6 @@ def start_hail_context(
                 default_reference='GRCh38',
             )
         )
-
-
-# def get_validation_callback(
-#     ext: str = None,
-#     must_exist: bool = False,
-#     accompanying_metadata_suffix: str = None,
-# ) -> Callable:
-#     """
-#     Get callback for Click parameters validation
-#     :param ext: check that the path has the expected extension
-#     :param must_exist: check that the input file/object/directory exists
-#     :param accompanying_metadata_suffix: checks that a file at the same location but
-#     with a different suffix also exists (e.g. genomes.mt and genomes.metadata.ht)
-#     :return: a callback suitable for Click parameter initialization
-#     """
-#
-#     def callback(_, param, value):
-#         if value is None:
-#             return None
-#         if ext:
-#             assert isinstance(value, str), value
-#             value = value.rstrip('/')
-#             if not value.endswith(f'.{ext}'):
-#                 raise click.BadParameter(
-#                     f'The argument {param.name} is expected to have '
-#                     f'an extension .{ext}, got: {value}'
-#                 )
-#         if must_exist:
-#             if not exists(value):
-#                 raise click.BadParameter(f"{value} doesn't exist or incomplete")
-#             if accompanying_metadata_suffix:
-#                 accompanying_metadata_fpath = (
-#                     os.path.splitext(value)[0] + accompanying_metadata_suffix
-#                 )
-#                 if not exists(accompanying_metadata_fpath):
-#                     raise click.BadParameter(
-#                         f"An accompanying file {accompanying_metadata_fpath} doesn't "
-#                         f'exist'
-#                     )
-#         return value
-#
-#     return callback
 
 
 # def get_vds(

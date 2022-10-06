@@ -1,13 +1,12 @@
 import collections
 import logging
 
+from cpg_utils import Path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import genome_build
 from cpg_utils.workflows.inputs import get_cohort
 from cpg_utils.workflows.utils import can_reuse, exists
 import hail as hl
-
-from larcoh import parameters
 
 logger = logging.getLogger(__file__)
 
@@ -60,10 +59,7 @@ def check_duplicates(iterable):
     return duplicates
 
 
-def run() -> hl.vds.VariantDataset:
-    out_vds_path = parameters.vds_path
-    tmp_prefix = parameters.tmp_prefix / 'combiner'
-
+def run(out_vds_path: Path, tmp_prefix: Path) -> hl.vds.VariantDataset:
     if can_reuse(out_vds_path):
         return hl.vds.read_vds(str(out_vds_path))
 

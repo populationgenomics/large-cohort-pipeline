@@ -1,11 +1,13 @@
 """
 Utils for submitting the workflow to a Dataproc cluster.
 """
-
+import inspect
 import logging
 import math
+import tempfile
 
 from analysis_runner import dataproc
+from cpg_utils import Path
 from cpg_utils.config import get_config
 from cpg_utils.workflows.batch import get_batch
 from hailtop.batch.job import Job
@@ -32,8 +34,9 @@ MAX_PRIMARY_WORKERS = 50
 
 
 def dataproc_job(
-    script_name: str,
-    params: dict | None = None,
+    job_name: str,
+    function,
+    function_path_args: list[Path],
     preemptible: bool = True,
     phantomjs: bool = True,
     num_workers: int | None = None,
@@ -46,13 +49,6 @@ def dataproc_job(
     """
     Submit script as a dataproc job.
     """
-    param_line = (
-        ' '.join(
-            f'--{k.replace("_", "-")} {v}' for k, v in params.items() if v is not None
-        )
-        if params
-        else ''
-    )
     if num_workers is None:
         num_workers = get_config()['workflow']['scatter_count']
 
@@ -82,10 +78,27 @@ def dataproc_job(
     # limiting the number of primary workers to avoid hitting GCP quota:
     num_primary_workers = min(num_primary_workers, MAX_PRIMARY_WORKERS)
 
+    #     func_args = ', '.join(f'{k}="{v}"' for k, v in params.items())
+    #
+    #     python_code = f"""
+    # {inspect.getsource(module)}
+    #
+    # from larcoh.utils import start_hail_context
+    # start_hail_context()
+    #
+    # {func_name}({func_args})
+    # """
+    #     script_f = tempfile.NamedTemporaryFile(suffix='.py', mode='w')
+    #     script_f.write(python_code)
+
     return dataproc.hail_dataproc_job(
         get_batch(),
-        script=f'scripts/{script_name} {param_line}',
-        job_name=script_name,
+        script=(
+            f'scripts/dataproc_script.py '
+            f'{function.__module__}.{function.__name__} '
+            f'{" ".join([str(p) for p in function_path_args])}'
+        ),
+        job_name=job_name,
         max_age=max_age,
         packages=DATAPROC_PACKAGES,
         num_secondary_workers=num_secondary_workers,
@@ -98,5 +111,5 @@ def dataproc_job(
         worker_machine_type='n1-highmem-8' if use_highmem_workers else 'n1-standard-8',
         worker_boot_disk_size=worker_boot_disk_size,
         secondary_worker_boot_disk_size=secondary_worker_boot_disk_size,
-        pyfiles=['large_cohort'],
+        pyfiles=['larcoh'],
     )

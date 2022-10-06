@@ -173,6 +173,7 @@ def _add_vqsr_jobs(
         variant_types=['INDEL', 'MNP', 'MIXED'],
         job_attrs=job_attrs,
     )
+    jobs.append(indel_vcf_j)
     indel_vcf_j.name = f'VQSR: {indel_vcf_j.name}'
     indel_vcf = indel_vcf_j.output_vcf
     assert isinstance(indel_vcf, hb.ResourceGroup)
