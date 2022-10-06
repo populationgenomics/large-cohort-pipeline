@@ -15,31 +15,31 @@ from cpg_utils.workflows.targets import Cohort
 from cpg_utils.workflows.utils import timestamp
 from pytest_mock import MockFixture
 
-DEFAULT_CONF = f"""
-[workflow]
-dataset_gcp_project = 'thousand-genomes'
-dataset = 'thousand-genomes'
-access_level = 'test'
-sequencing_type = 'genome'
-output_version = '1.0'
-check_intermediates = true
-# Local backend:
-path_scheme = 'local'
-reference_prefix = 'data/reference'
-
-[hail]
-billing_project = 'thousand-genomes'
-dry_run = true
-# Local backend:
-query_backend = 'spark_local'
-"""
-
 
 def _set_config(dir_path: Path, extra_conf: dict | None = None):
-    d = toml.loads(DEFAULT_CONF)
+    results_dir_path = (
+        to_path(__file__).parent / 'results' / os.getenv('TEST_TIMESTAMP', timestamp())
+    )
+    d = {
+        'workflow': {
+            'local_dir': str(results_dir_path.absolute()),
+            'dataset_gcp_project': 'thousand-genomes',
+            'dataset': 'thousand-genomes',
+            'access_level': 'test',
+            'sequencing_type': 'genome',
+            'output_version': '1.0',
+            'check_intermediates': True,
+            'path_scheme': 'local',
+            'reference_prefix': str(to_path(__file__).parent / 'data' / 'reference'),
+        },
+        'hail': {
+            'billing_project': 'thousand-genomes',
+            'dry_run': True,
+            'query_backend': 'spark_local',
+        },
+    }
     if extra_conf:
         update_dict(d, extra_conf)
-    print(d)
     with (out_path := dir_path / 'config.toml').open('w') as f:
         toml.dump(d, f)
     set_config_paths([str(out_path)])
@@ -49,16 +49,9 @@ def test_larcoh(mocker: MockFixture, tmpdir: str):
     """
     Run entire workflow in a local mode.
     """
-    results_dir_path = (
-        to_path(__file__).parent / 'results' / os.getenv('TEST_TIMESTAMP', timestamp())
-    )
-
     _set_config(
         to_path(tmpdir),
         extra_conf={
-            'workflow': {
-                'local_dir': str(results_dir_path.absolute()),
-            },
             'combiner': {
                 'intervals': ['chr20:start-end', 'chrX:start-end', 'chrY:start-end'],
             },
