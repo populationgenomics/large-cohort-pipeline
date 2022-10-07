@@ -11,14 +11,11 @@ from WGS VQSR and Exome AS-VQSR settings.
 from typing import List
 
 import hailtop.batch as hb
-from cpg_utils.workflows.batch import get_batch
-from cpg_utils.workflows.inputs import get_cohort
 from hailtop.batch.job import Job
 
 from cpg_utils import Path
 from cpg_utils.hail_batch import reference_path, image_path, command
 from cpg_utils.workflows.resources import STANDARD, HIGHMEM
-from larcoh import parameters
 from .intervals import get_intervals, gather_vcfs, subset_vcf
 
 # When applying model, VQSR targets indel_filter_level and snp_filter_level
@@ -83,20 +80,6 @@ INDEL_RECALIBRATION_TRANCHE_VALUES = [
     91.0,
     90.0,
 ]
-
-
-# def add_vqsr_jobs() -> list[Job]:
-#     vqsr_prefix = parameters.tmp_prefix / 'vqsr'
-#     site_only_vcf_path = vqsr_prefix / 'site_only.vcf.gz'
-#     vqsr_site_only_vcf_path = vqsr_prefix / 'vqsr.vcf.gz'
-#
-#     return _add_vqsr_jobs(
-#         b=get_batch(),
-#         input_siteonly_vcf_path=site_only_vcf_path,
-#         tmp_prefix=vqsr_prefix / 'tmp',
-#         gvcf_count=len(get_cohort().get_samples()),
-#         out_path=vqsr_site_only_vcf_path,
-#     )
 
 
 def add_vqsr_jobs(

@@ -1,18 +1,17 @@
 import hail as hl
 import logging
+
+from cpg_utils import Path
 from gnomad.utils.sparse_mt import split_info_annotation
 
-from larcoh import parameters
 
-
-def load_vqsr():
-    vqsr_prefix = parameters.tmp_prefix / 'vqsr'
-    vqsr_site_only_vcf_path = vqsr_prefix / 'vqsr.vcf.gz'
-    output_ht_path = vqsr_prefix / 'vqsr.ht'
-
+def run(
+    site_only_vcf_path: Path,
+    out_ht_path: Path,
+):
     logging.info(f'Importing VQSR annotations...')
     mt = hl.import_vcf(
-        vqsr_site_only_vcf_path,
+        site_only_vcf_path,
         force_bgz=True,
         reference_genome='GRCh38',
     )
@@ -39,9 +38,9 @@ def load_vqsr():
     ht = ht.annotate(
         filters=ht.filters.union(hl.set([ht.info.AS_FilterStatus])),
     )
-    ht.write(output_ht_path, overwrite=True)
-    ht = hl.read_table(output_ht_path)
-    logging.info(f'Wrote split HT to {output_ht_path}')
+    ht.write(out_ht_path, overwrite=True)
+    ht = hl.read_table(str(out_ht_path))
+    logging.info(f'Wrote split HT to {out_ht_path}')
     split_count = ht.count()
     logging.info(
         f'Found {unsplit_count} unsplit and {split_count} split variants with VQSR annotations'

@@ -158,7 +158,7 @@ def add_soft_filters(ht: hl.Table) -> hl.Table:
         ),
         'bad_biallelic_metrics',
     )
-    ht.annotate(filtered=hl.len(ht.filters) > 0)
+    ht = ht.annotate(filtered=hl.len(ht.filters) > 0)
     logging.info('Table with filters:')
     ht.describe()
     return ht

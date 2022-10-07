@@ -34,7 +34,7 @@ def run(
     tag = get_config()['larcoh'].get('pop_tag', 'continental_pop')
     n_pcs = 16
     mt = hl.read_matrix_table(str(dense_mt_path))
-    sample_ht = hl.read_table(str(sample_qc_ht_path))
+    sample_qc_ht = hl.read_table(str(sample_qc_ht_path))
     relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
 
     logging.info(
@@ -52,8 +52,8 @@ def run(
 
     scores_ht = hl.read_table(str(out_scores_ht_path))
 
-    training_pop_ht = sample_ht.filter(
-        hl.is_defined(sample_ht[tag]) & (sample_ht[tag] != '-')
+    training_pop_ht = sample_qc_ht.filter(
+        hl.is_defined(sample_qc_ht[tag]) & (sample_qc_ht[tag] != '-')
     )
     training_pop_ht = training_pop_ht.annotate(training_pop=training_pop_ht[tag])
     pop_ht = _infer_pop_labels(
@@ -64,8 +64,8 @@ def run(
         n_pcs=n_pcs,
         out_ht_path=out_inferred_pop_ht_path,
     )
-    sample_ht.annotate(**pop_ht[sample_ht.key])
-    return scores_ht, eigenvalues_ht, loadings_ht, sample_ht
+    sample_qc_ht.annotate(**pop_ht[sample_qc_ht.key])
+    return scores_ht, eigenvalues_ht, loadings_ht, sample_qc_ht
 
 
 def _run_pca_ancestry_analysis(
