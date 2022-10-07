@@ -257,20 +257,22 @@ class Vqsr(CohortStage):
 
 
 @stage(required_stages=Vqsr)
-class ImportVqsr(CohortStage):
-    def expected_outputs(self, cohort: Cohort) -> Path:
-        return get_workflow().prefix / 'vqsr.ht'
+class VariantAnnotation(CohortStage):
+    def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
+        return {
+            'vqsr_ht': get_workflow().prefix / 'vqsr.ht',
+        }
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
         from larcoh.dataproc_utils import dataproc_job
-        from larcoh.variant_qc.load_vqsr import run
+        from larcoh.variant_qc.annotate import run
 
         j = dataproc_job(
             job_name=self.__class__.__name__,
             function=run,
             function_path_args=dict(
                 site_only_vcf_path=inputs.as_path(cohort, Vqsr),
-                out_ht_path=self.expected_outputs(cohort),
+                vqsr_ht_path=self.expected_outputs(cohort)['vqsr_ht'],
             ),
             depends_on=inputs.get_jobs(cohort),
         )
@@ -291,7 +293,7 @@ def main(config_paths: list[str]):
         config_paths += _env_var.split(',') + list(config_paths)
     set_config_paths(list(config_paths))
 
-    run_workflow([ImportVqsr])
+    run_workflow([VariantAnnotation])
 
 
 if __name__ == '__main__':

@@ -7,8 +7,24 @@ from gnomad.utils.sparse_mt import split_info_annotation
 
 def run(
     site_only_vcf_path: Path,
+    vqsr_ht_path: Path,
+):
+    load_vqsr(site_only_vcf_path, vqsr_ht_path)
+
+    # TODO: generate QC annotations
+
+    # TODO: generate frequencies
+
+    # TODO: making final MT
+
+
+def load_vqsr(
+    site_only_vcf_path: Path,
     out_ht_path: Path,
 ):
+    """
+    Convert VQSR VCF to HT
+    """
     logging.info(f'Importing VQSR annotations...')
     mt = hl.import_vcf(
         site_only_vcf_path,
