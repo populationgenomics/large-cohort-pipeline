@@ -1,3 +1,6 @@
 [submodule "gnomad_qc"]
 	path = gnomad_qc
 	url = git@github.com:broadinstitute/gnomad_qc.git
+[submodule "gnomad_methods"]
+	path = gnomad_methods
+	url = git@github.com:broadinstitute/gnomad_methods.git

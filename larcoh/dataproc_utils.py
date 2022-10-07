@@ -17,7 +17,6 @@ logger = logging.getLogger(__file__)
 
 DATAPROC_PACKAGES = [
     'cpg-utils',
-    'coloredlogs',
     'click',
     'cpg-gnomad==0.6.3',
     'google',
@@ -36,9 +35,8 @@ MAX_PRIMARY_WORKERS = 50
 def dataproc_job(
     job_name: str,
     function,
-    function_path_args: list[Path],
+    function_path_args: dict[str, Path],
     preemptible: bool = True,
-    phantomjs: bool = True,
     num_workers: int | None = None,
     depends_on: list[Job | None] = None,
     autoscaling_policy: str | None = None,
@@ -49,6 +47,23 @@ def dataproc_job(
     """
     Submit script as a dataproc job.
     """
+    script = (
+        f'scripts/dataproc_script.py '
+        f'{function.__module__} {function.__name__} '
+        f'{" ".join([str(p) for p in function_path_args.values()])}'
+    )
+
+    if cluster_id := get_config()['hail'].get('dataproc', {}).get('cluster_id'):
+        # noinspection PyProtectedMember
+        return dataproc._add_submit_job(
+            batch=get_batch(),
+            cluster_id=cluster_id,
+            script=script,
+            pyfiles=['larcoh'],
+            job_name=job_name,
+            region='australia-southeast1',
+        )
+
     if num_workers is None:
         num_workers = get_config()['workflow']['scatter_count']
 
@@ -78,26 +93,9 @@ def dataproc_job(
     # limiting the number of primary workers to avoid hitting GCP quota:
     num_primary_workers = min(num_primary_workers, MAX_PRIMARY_WORKERS)
 
-    #     func_args = ', '.join(f'{k}="{v}"' for k, v in params.items())
-    #
-    #     python_code = f"""
-    # {inspect.getsource(module)}
-    #
-    # from larcoh.utils import start_hail_context
-    # start_hail_context()
-    #
-    # {func_name}({func_args})
-    # """
-    #     script_f = tempfile.NamedTemporaryFile(suffix='.py', mode='w')
-    #     script_f.write(python_code)
-
     return dataproc.hail_dataproc_job(
         get_batch(),
-        script=(
-            f'scripts/dataproc_script.py '
-            f'{function.__module__} {function.__name__} '
-            f'{" ".join([str(p) for p in function_path_args])}'
-        ),
+        script=script,
         job_name=job_name,
         max_age=max_age,
         packages=DATAPROC_PACKAGES,
@@ -105,9 +103,9 @@ def dataproc_job(
         num_workers=num_primary_workers,
         autoscaling_policy=autoscaling_policy,
         depends_on=depends_on,
-        init=['gs://cpg-reference/hail_dataproc/install_phantomjs.sh']
-        if phantomjs
-        else [],
+        init=[
+            'gs://cpg-reference/hail_dataproc/install_common.sh',
+        ],
         worker_machine_type='n1-highmem-8' if use_highmem_workers else 'n1-standard-8',
         worker_boot_disk_size=worker_boot_disk_size,
         secondary_worker_boot_disk_size=secondary_worker_boot_disk_size,

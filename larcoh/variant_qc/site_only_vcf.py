@@ -10,38 +10,46 @@ from cpg_utils.workflows.utils import can_reuse
 from gnomad.utils.vcf import adjust_vcf_incompatible_types
 from gnomad.utils.sparse_mt import default_compute_info
 
-from larcoh import parameters
+
+def run(
+    vds_path: Path,
+    sample_qc_ht_path: Path,
+    relateds_to_drop_ht_path: Path,
+    out_vcf_path: Path,
+    tmp_prefix: Path,
+):
+    vds = hl.vds.read_vds(str(vds_path))
+    sample_qc_ht = hl.read_table(str(sample_qc_ht_path))
+    relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
+
+    ht = vds_to_site_only_ht(
+        vds=vds,
+        sample_qc_ht=sample_qc_ht,
+        relateds_to_drop_ht=relateds_to_drop_ht,
+        tmp_prefix=tmp_prefix,
+    )
+    hl.export_vcf(ht, str(out_vcf_path))
 
 
-def site_only_ht_to_vcf():
-    vqsr_prefix = parameters.tmp_prefix / 'vqsr'
-    site_only_ht_path = vqsr_prefix / 'site_only.ht'
-    out_vcf_path = vqsr_prefix / 'site_only.vcf.gz'
-
-    if can_reuse(out_vcf_path):
-        return out_vcf_path
-
-    hl.export_vcf(hl.read_table(site_only_ht_path), out_vcf_path)
-
-
-def vds_to_site_only_ht() -> hl.Table:
+def vds_to_site_only_ht(
+    vds: hl.vds.VariantDataset,
+    sample_qc_ht: hl.Table,
+    relateds_to_drop_ht: hl.Table,
+    tmp_prefix: Path,
+) -> hl.Table:
     """
     Convert VDS into sites-only VCF-ready table.
     """
-    vqsr_prefix = parameters.tmp_prefix / 'vqsr'
-    out_ht_path = vqsr_prefix / 'site_only.ht'
-
+    out_ht_path = tmp_prefix / 'site_only.ht'
     if can_reuse(out_ht_path):
         return hl.read_table(str(out_ht_path))
 
-    vds = hl.vds.read_vds(str(parameters.vds_path))
-    sample_ht = hl.read_table(str(parameters.sample_qc_ht_path))
-    related_to_drop = hl.read_table(str(parameters.relateds_to_drop_ht_path))
-    sample_ht.annotate(related=hl.is_defined(related_to_drop[sample_ht.key]))
-
     mt = vds.variant_data
-    mt = mt.filter_cols(sample_ht[mt.col_key].filtered, keep=False)
-    mt = mt.filter_cols(sample_ht[mt.col_key].related, keep=False)
+    mt = mt.filter_cols(sample_qc_ht[mt.col_key].filtered, keep=False)
+    sample_qc_ht = sample_qc_ht.annotate(
+        related=hl.is_defined(relateds_to_drop_ht[sample_qc_ht.key]),
+    )
+    mt = mt.filter_cols(sample_qc_ht[mt.col_key].related, keep=False)
     mt = _filter_rows_and_add_tags(mt)
     var_ht = _create_info_ht(mt, n_partitions=mt.n_partitions())
     var_ht = adjust_vcf_incompatible_types(

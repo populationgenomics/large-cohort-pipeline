@@ -3,8 +3,8 @@ dataset = 'prophecy'
 input_datasets = ['prophecy']
 dataset_gcp_project = 'prophecy-339301'
 sequencing_type = 'genome'
-
 access_level = 'test'
+output_version = '0.1'
 
 check_inputs = false
 check_expected_outputs = true
@@ -16,3 +16,6 @@ vds_version = '0.1'
 
 [hail]
 billing_project = 'prophecy'
+
+[hail.dataproc]
+cluster_id = 'dp-test3'

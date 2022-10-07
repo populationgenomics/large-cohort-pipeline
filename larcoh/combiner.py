@@ -113,7 +113,7 @@ def run(out_vds_path: Path, tmp_prefix: Path) -> hl.vds.VariantDataset:
         **params,
     )
     combiner.run()
-    return hl.vds.read_vds(out_vds_path)
+    return hl.vds.read_vds(str(out_vds_path))
 
 
 # def queue_combiner(out_vds_path: Path) -> Job | None:

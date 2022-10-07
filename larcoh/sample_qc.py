@@ -6,22 +6,25 @@ Add soft filters for samples.
 import logging
 
 import hail as hl
+from cpg_utils import Path
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import reference_path, genome_build
 from cpg_utils.workflows.inputs import get_cohort
 from cpg_utils.workflows.utils import can_reuse
 from gnomad.sample_qc.pipeline import annotate_sex
 
-from larcoh import parameters
 
-
-def run():
-    if can_reuse(parameters.sample_qc_ht_path):
-        return hl.read_table(str(parameters.sample_qc_ht_path))
+def run(
+    vds_path: Path,
+    out_sample_qc_ht_path: Path,
+    tmp_prefix: Path,
+):
+    if can_reuse(out_sample_qc_ht_path):
+        return hl.read_table(str(out_sample_qc_ht_path))
 
     ht = initialise_sample_table()
 
-    vds = hl.vds.read_vds(str(parameters.vds_path))
+    vds = hl.vds.read_vds(str(vds_path))
 
     # Remove centromeres and telomeres:
     tel_cent_ht = hl.read_table(str(reference_path('gnomad/tel_and_cent_ht')))
@@ -38,11 +41,11 @@ def run():
     ht.describe()
 
     # Impute sex
-    sex_ht = impute_sex(vds, ht)
+    sex_ht = impute_sex(vds, ht, tmp_prefix)
     ht = ht.annotate(**sex_ht[ht.s])
 
     ht = add_soft_filters(ht)
-    ht.checkpoint(str(parameters.sample_qc_ht_path), overwrite=True)
+    ht.checkpoint(str(out_sample_qc_ht_path), overwrite=True)
 
 
 def initialise_sample_table() -> hl.Table:
@@ -60,17 +63,22 @@ def initialise_sample_table() -> hl.Table:
             'subcontinental_pop': s.meta.get('subcontinental_pop') or None,
         }
         for s in get_cohort().get_samples()
+        if s.gvcf
     ]
     t = 'array<struct{s: str, external_id: str, dataset: str, gvcf: str, sex: str, continental_pop: str, subcontinental_pop: str}>'
     ht = hl.Table.parallelize(hl.literal(a, t), key='s')
     return ht
 
 
-def impute_sex(vds: hl.vds.VariantDataset, ht: hl.Table) -> hl.Table:
+def impute_sex(
+    vds: hl.vds.VariantDataset,
+    ht: hl.Table,
+    tmp_prefix: Path,
+) -> hl.Table:
     """
     Impute sex based on coverage.
     """
-    checkpoint_path = parameters.tmp_prefix / 'sample_qc' / 'sex.ht'
+    checkpoint_path = tmp_prefix / 'sample_qc' / 'sex.ht'
     if can_reuse(str(checkpoint_path)):
         sex_ht = hl.read_table(str(checkpoint_path))
         return ht.annotate(**sex_ht[ht.s])

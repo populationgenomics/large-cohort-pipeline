@@ -8,7 +8,64 @@ from cpg_utils.config import get_config
 from cpg_utils.workflows.utils import can_reuse
 from gnomad.sample_qc.ancestry import run_pca_with_relateds, assign_population_pcs
 
-from larcoh import parameters
+
+def run(
+    dense_mt_path: Path,
+    sample_qc_ht_path: Path,
+    relateds_to_drop_ht_path: Path,
+    tmp_prefix: Path,
+    out_scores_ht_path: Path,
+    out_eigenvalues_ht_path: Path,
+    out_loadings_ht_path: Path,
+    out_inferred_pop_ht_path: Path,
+) -> tuple[hl.Table, hl.Table, hl.Table, hl.Table]:
+    """
+    Run PCA, and return 4 hail tables:
+    * scores,
+    * eigenvalues,
+    * loadings,
+    * original sample_ht annotated with the following:
+        'training_pop': str
+        'pca_scores': array<float64>
+        'pop': str
+        'prob_<pop>': float64 (for each population label)
+    """
+    min_pop_prob = get_config()['larcoh']['min_pop_prob']
+    tag = get_config()['larcoh'].get('pop_tag', 'continental_pop')
+    n_pcs = 16
+    mt = hl.read_matrix_table(str(dense_mt_path))
+    sample_ht = hl.read_table(str(sample_qc_ht_path))
+    relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
+
+    logging.info(
+        f'Running PCA on {mt.count_cols()} samples, {mt.count_rows()} sites, '
+        f'using {n_pcs} PCs'
+    )
+    scores_ht, eigenvalues_ht, loadings_ht = _run_pca_ancestry_analysis(
+        mt=mt,
+        sample_to_drop_ht=relateds_to_drop_ht,
+        n_pcs=n_pcs,
+        out_scores_ht_path=out_scores_ht_path,
+        out_eigenvalues_ht_path=out_eigenvalues_ht_path,
+        out_loadings_ht_path=out_loadings_ht_path,
+    )
+
+    scores_ht = hl.read_table(str(out_scores_ht_path))
+
+    training_pop_ht = sample_ht.filter(
+        hl.is_defined(sample_ht[tag]) & (sample_ht[tag] != '-')
+    )
+    training_pop_ht = training_pop_ht.annotate(training_pop=training_pop_ht[tag])
+    pop_ht = _infer_pop_labels(
+        scores_ht=scores_ht,
+        training_pop_ht=training_pop_ht,
+        tmp_prefix=tmp_prefix,
+        min_prob=min_pop_prob,
+        n_pcs=n_pcs,
+        out_ht_path=out_inferred_pop_ht_path,
+    )
+    sample_ht.annotate(**pop_ht[sample_ht.key])
+    return scores_ht, eigenvalues_ht, loadings_ht, sample_ht
 
 
 def _run_pca_ancestry_analysis(
@@ -180,58 +237,3 @@ def _infer_pop_labels(
 
     pop_ht = pop_ht.annotate(is_training=hl.is_defined(training_pop_ht[pop_ht.key]))
     return pop_ht.checkpoint(str(out_ht_path), overwrite=True)
-
-
-def run() -> tuple[hl.Table, hl.Table, hl.Table, hl.Table]:
-    """
-    Run PCA, and return 4 hail tables:
-    * scores,
-    * eigenvalues,
-    * loadings,
-    * original sample_ht annotated with the following:
-        'training_pop': str
-        'pca_scores': array<float64>
-        'pop': str
-        'prob_<pop>': float64 (for each population label)
-    """
-    min_pop_prob = get_config()['larcoh']['min_pop_prob']
-    tag = get_config()['larcoh'].get('pop_tag', 'continental_pop')
-    n_pcs = 16
-    mt = hl.read_matrix_table(str(parameters.dense_mt_path))
-    sample_ht = hl.read_table(str(parameters.sample_qc_ht_path))
-    relateds_to_drop_ht = hl.read_table(str(parameters.relateds_to_drop_ht_path))
-    tmp_prefix = parameters.tmp_prefix / 'ancestry'
-    out_scores_ht_path = parameters.scores_ht_path
-    out_eigenvalues_ht_path = parameters.eigenvalues_ht_path
-    out_loadings_ht_path = parameters.loadings_ht_path
-    out_inferred_pop_ht_path = parameters.inferred_pop_ht_path
-
-    logging.info(
-        f'Running PCA on {mt.count_cols()} samples, {mt.count_rows()} sites, '
-        f'using {n_pcs} PCs'
-    )
-    scores_ht, eigenvalues_ht, loadings_ht = _run_pca_ancestry_analysis(
-        mt=mt,
-        sample_to_drop_ht=relateds_to_drop_ht,
-        n_pcs=n_pcs,
-        out_scores_ht_path=out_scores_ht_path,
-        out_eigenvalues_ht_path=out_eigenvalues_ht_path,
-        out_loadings_ht_path=out_loadings_ht_path,
-    )
-
-    scores_ht = hl.read_table(str(out_scores_ht_path))
-
-    training_pop_ht = sample_ht.filter(
-        hl.is_defined(sample_ht[tag]) & (sample_ht[tag] != '-')
-    )
-    training_pop_ht = training_pop_ht.annotate(training_pop=training_pop_ht[tag])
-    pop_ht = _infer_pop_labels(
-        scores_ht=scores_ht,
-        training_pop_ht=training_pop_ht,
-        tmp_prefix=tmp_prefix,
-        min_prob=min_pop_prob,
-        n_pcs=n_pcs,
-        out_ht_path=out_inferred_pop_ht_path,
-    )
-    sample_ht.annotate(**pop_ht[sample_ht.key])
-    return scores_ht, eigenvalues_ht, loadings_ht, sample_ht

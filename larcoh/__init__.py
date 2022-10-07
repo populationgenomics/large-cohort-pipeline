@@ -1,13 +1,11 @@
 import importlib.metadata
-import os
-
-import coloredlogs
+import logging
 from cpg_utils import Path, to_path
-from cpg_utils.config import set_config_paths
+from cpg_utils.config import get_config
+from cpg_utils.hail_batch import dataset_path
 
-coloredlogs.install(
-    level='INFO', fmt='%(asctime)s %(levelname)s (%(name)s %(lineno)s): %(message)s'
-)
+logging.basicConfig()
+logging.getLogger().setLevel(logging.INFO)
 
 
 def get_package_name() -> str:
@@ -29,3 +27,9 @@ def get_version() -> str:
     Get package version.
     """
     return importlib.metadata.version(get_package_name())
+
+
+# def path_prefix(category: str | None = None) -> Path:
+#     output_version = get_config()['workflow']['output_version']
+#     _suffix = f'larcoh/{output_version}'
+#     return to_path(dataset_path(_suffix, category=category))

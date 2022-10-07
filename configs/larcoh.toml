@@ -1,4 +1,5 @@
 [workflow]
+name = 'larcoh'
 scatter_count = 50
 output_version = '0.1'
 
@@ -28,6 +29,9 @@ indel_filter_level = 99.0
 [hail]
 pool_label = 'large-cohort'
 delete_scratch_on_exit = false
+
+[hail.dataproc]
+combiner_autoscaling_policy = 'vcf-combiner-{max_workers}'
 
 [references]
 gencode_gtf = 'gencode/gencode.v39.annotation.gtf.bgz'

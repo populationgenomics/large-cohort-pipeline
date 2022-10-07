@@ -15,29 +15,32 @@ from bokeh.transform import factor_cmap, factor_mark
 from bokeh.plotting import ColumnDataSource, figure
 from bokeh.palettes import turbo  # flake: disable=F401
 from bokeh.models import CategoricalColorMapper, HoverTool
+from cpg_utils import Path
 from cpg_utils.hail_batch import reference_path, genome_build
-
-from larcoh import parameters
 
 
 BG_LABEL = 'Provided ancestry (1KG+HGDP)'
 FG_LABEL = 'Inferred ancestry'
 
 
-def run(num_pcs_to_plot: int = None):
+def run(
+    out_path_pattern: Path,
+    sample_qc_ht_path: Path,
+    scores_ht_path: Path,
+    eigenvalues_ht_path: Path,
+    loadings_ht_path: Path,
+    inferred_pop_ht_path: Path,
+):
     """
     Generate plots in HTML format, write for each PC (of n_pcs) and
     scope ("dataset", "population") plus for loadings) into
     file paths defined by `out_path_pattern`.
     """
-    ancestry_web_bucket = parameters.web_prefix / 'ancestry'
-    sample_ht = hl.read_table(str(parameters.sample_qc_ht_path))
-    scores_ht = hl.read_table(str(parameters.scores_ht_path))
-    eigenvalues_ht = hl.read_table(str(parameters.eigenvalues_ht_path))
-    loadings_ht = hl.read_table(str(parameters.loadings_ht_path))
-    inferred_pop_ht = hl.read_table(str(parameters.inferred_pop_ht_path))
-
-    out_path_pattern = str(ancestry_web_bucket / '{scope}_pc{pci}.{ext}')
+    sample_ht = hl.read_table(str(sample_qc_ht_path))
+    scores_ht = hl.read_table(str(scores_ht_path))
+    eigenvalues_ht = hl.read_table(str(eigenvalues_ht_path))
+    loadings_ht = hl.read_table(str(loadings_ht_path))
+    inferred_pop_ht = hl.read_table(str(inferred_pop_ht_path))
 
     scores_ht = scores_ht.annotate(
         pop=inferred_pop_ht[scores_ht.s].pop,
@@ -87,7 +90,7 @@ def run(num_pcs_to_plot: int = None):
     eigenvalues_df = pd.to_numeric(eigenvalues)
     variance = np.divide(eigenvalues_df[1:], float(eigenvalues_df.sum())) * 100
     variance = variance.round(2)
-    num_pcs_to_plot = num_pcs_to_plot or len(eigenvalues_df) - 1
+    num_pcs_to_plot = len(eigenvalues_df) - 1
 
     plots = []
 

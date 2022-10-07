@@ -1,13 +1,36 @@
 import logging
 import hail as hl
+from cpg_utils import Path
 from cpg_utils.config import get_config
 from cpg_utils.workflows.utils import can_reuse
 from gnomad.sample_qc.relatedness import compute_related_samples_to_drop
 
-from larcoh import parameters
+
+def run(
+    dense_mt_path: Path,
+    out_relatedness_ht_path: Path,
+    out_relateds_to_drop_ht_path: Path,
+    tmp_prefix: Path,
+):
+    dense_mt = hl.read_matrix_table(str(dense_mt_path))
+    relatedness_ht = pcrelate(
+        dense_mt=dense_mt,
+        out_relatedness_ht_path=out_relatedness_ht_path,
+        tmp_prefix=tmp_prefix,
+    )
+    flag_related(
+        relatedness_ht=relatedness_ht,
+        sample_ht=dense_mt.cols(),
+        out_relateds_to_drop_ht_path=out_relateds_to_drop_ht_path,
+        tmp_prefix=tmp_prefix,
+    )
 
 
-def pcrelate() -> hl.Table:
+def pcrelate(
+    dense_mt: hl.MatrixTable,
+    out_relatedness_ht_path: Path,
+    tmp_prefix: Path,
+) -> hl.Table:
     """
     Writes table with the following structure:
     Row fields:
@@ -19,15 +42,15 @@ def pcrelate() -> hl.Table:
         'ibd2': float64
     Key: ['i', 'j']
     """
-    mt = hl.read_matrix_table(str(parameters.dense_mt_path))
+    mt = dense_mt
 
-    if can_reuse(parameters.relatedness_ht_path):
-        return hl.read_table(str(parameters.relatedness_ht_path))
+    if can_reuse(out_relatedness_ht_path):
+        return hl.read_table(str(out_relatedness_ht_path))
 
     mt = mt.select_entries('GT')
 
     logging.info('Running relatedness check')
-    scores_ht_path = parameters.tmp_prefix / 'pcrelate' / 'relatedness_pca_scores.ht'
+    scores_ht_path = tmp_prefix / 'pcrelate' / 'relatedness_pca_scores.ht'
     if can_reuse(scores_ht_path):
         scores_ht = hl.read_table(scores_ht_path)
     else:
@@ -48,25 +71,24 @@ def pcrelate() -> hl.Table:
     # Converting keys for type struct{str} to str to align
     # with the rank_ht `s` key:
     relatedness_ht = relatedness_ht.key_by(i=relatedness_ht.i.s, j=relatedness_ht.j.s)
-    return relatedness_ht.checkpoint(
-        str(parameters.relatedness_ht_path), overwrite=True
-    )
+    return relatedness_ht.checkpoint(str(out_relatedness_ht_path), overwrite=True)
 
 
-def flag_related() -> hl.Table:
+def flag_related(
+    relatedness_ht: hl.Table,
+    sample_ht: hl.Table,
+    out_relateds_to_drop_ht_path: Path,
+    tmp_prefix: Path,
+) -> hl.Table:
     """
     Rank samples and flag samples to drop so there is only one sample per family
     left, with the highest rank in the family.
     """
-    sample_ht = hl.read_table(str(parameters.sample_qc_ht_path))
-    relatedness_ht = hl.read_table(str(parameters.relatedness_ht_path))
-    out_ht_path = parameters.relateds_to_drop_ht_path
-
     logging.info(f'Flagging related samples to drop')
-    if can_reuse(out_ht_path):
-        return hl.read_table(str(out_ht_path))
+    if can_reuse(out_relateds_to_drop_ht_path):
+        return hl.read_table(str(out_relateds_to_drop_ht_path))
 
-    rankings_ht_path = parameters.tmp_prefix / 'relatedness' / f'samples_rankings.ht'
+    rankings_ht_path = tmp_prefix / 'relatedness' / f'samples_rankings.ht'
     if can_reuse(rankings_ht_path):
         rank_ht = hl.read_table(str(rankings_ht_path))
     else:
@@ -91,11 +113,10 @@ def flag_related() -> hl.Table:
         kin_threshold=get_config()['larcoh']['max_kin'],
         filtered_samples=filtered_samples,
     )
-    to_drop_ht = to_drop_ht.checkpoint(str(out_ht_path), overwrite=True)
-    sample_ht.annotate(
-        related=hl.is_defined(to_drop_ht[sample_ht.key]),
+    to_drop_ht = to_drop_ht.checkpoint(
+        str(out_relateds_to_drop_ht_path), overwrite=True
     )
-    return sample_ht
+    return to_drop_ht
 
 
 def _compute_sample_rankings(
