@@ -23,22 +23,20 @@ coloredlogs.install(level='INFO', fmt=fmt)
 @stage
 class Combiner(CohortStage):
     def expected_outputs(self, cohort: Cohort) -> Path:
-        output_version = get_config()['workflow']['output_version']
-        vds_version = get_config()['workflow'].get('vds_version') or output_version
-        if not vds_version.startswith('v'):
-            vds_version = f'v{vds_version}'
-        vds_version = vds_version.replace('.', '-')
+        if vds_version := get_config()['workflow'].get('vds_version'):
+            if not vds_version.startswith('v'):
+                vds_version = f'v{vds_version}'
+            vds_version = vds_version.replace('.', '-')
+
+        vds_version = (
+            vds_version or get_workflow().output_version or get_workflow().run_timestamp
+        )
         return cohort.analysis_dataset.prefix() / 'vds' / f'{vds_version}.vds'
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
         # Can't import it before all configs are set:
         from larcoh.dataproc_utils import dataproc_job
         from larcoh.combiner import run
-
-        output_version = get_config()['workflow']['output_version']
-        vds_version = get_config()['workflow'].get('vds_version') or output_version
-        vds_version = f'v{vds_version}'.replace('.', '-')
-        vds_path = to_path(dataset_path(f'vds/{vds_version}.vds'))
 
         scatter_count = get_config()['workflow'].get('scatter_count', 50)
         if (
@@ -60,7 +58,8 @@ class Combiner(CohortStage):
             job_name=self.__class__.__name__,
             function=run,
             function_path_args=dict(
-                out_vds_path=vds_path, tmp_prefix=self.tmp_prefix / 'combiner'
+                out_vds_path=self.expected_outputs(cohort),
+                tmp_prefix=self.tmp_prefix,
             ),
             autoscaling_policy=policy_name,
         )

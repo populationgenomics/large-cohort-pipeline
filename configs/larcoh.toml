@@ -1,7 +1,6 @@
 [workflow]
 name = 'larcoh'
 scatter_count = 50
-output_version = '0.1'
 
 [larcoh]
 # minimum random forest probability for population assignment

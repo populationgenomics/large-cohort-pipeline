@@ -4,7 +4,6 @@ input_datasets = ['prophecy']
 dataset_gcp_project = 'prophecy-339301'
 sequencing_type = 'genome'
 access_level = 'test'
-output_version = '0.1'
 
 check_inputs = false
 check_expected_outputs = true
@@ -12,7 +11,6 @@ skip_samples_with_missing_input = true
 
 scatter_count = 20
 output_version = '0.1'
-vds_version = '0.1'
 
 [hail]
 billing_project = 'prophecy'
