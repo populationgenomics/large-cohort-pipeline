@@ -85,21 +85,21 @@ INDEL_RECALIBRATION_TRANCHE_VALUES = [
 ]
 
 
-def add_vqsr_jobs() -> list[Job]:
-    vqsr_prefix = parameters.tmp_prefix / 'vqsr'
-    site_only_vcf_path = vqsr_prefix / 'site_only.vcf.gz'
-    vqsr_site_only_vcf_path = vqsr_prefix / 'vqsr.vcf.gz'
+# def add_vqsr_jobs() -> list[Job]:
+#     vqsr_prefix = parameters.tmp_prefix / 'vqsr'
+#     site_only_vcf_path = vqsr_prefix / 'site_only.vcf.gz'
+#     vqsr_site_only_vcf_path = vqsr_prefix / 'vqsr.vcf.gz'
+#
+#     return _add_vqsr_jobs(
+#         b=get_batch(),
+#         input_siteonly_vcf_path=site_only_vcf_path,
+#         tmp_prefix=vqsr_prefix / 'tmp',
+#         gvcf_count=len(get_cohort().get_samples()),
+#         out_path=vqsr_site_only_vcf_path,
+#     )
 
-    return _add_vqsr_jobs(
-        b=get_batch(),
-        input_siteonly_vcf_path=site_only_vcf_path,
-        tmp_prefix=vqsr_prefix / 'tmp',
-        gvcf_count=len(get_cohort().get_samples()),
-        out_path=vqsr_site_only_vcf_path,
-    )
 
-
-def _add_vqsr_jobs(
+def add_vqsr_jobs(
     b: hb.Batch,
     input_siteonly_vcf_path: Path,
     tmp_prefix: Path,

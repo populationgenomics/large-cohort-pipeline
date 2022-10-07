@@ -117,7 +117,7 @@ def add_soft_filters(ht: hl.Table) -> hl.Table:
     Uses the sex imputation results, variant sample qc, and input QC metrics
     to populate "filters" field to the sample table.
     """
-    logging.info('Generating hard filters')
+    logging.info('Adding soft filters')
     ht = ht.annotate(filters=hl.empty_set(hl.tstr))
 
     # Helper function to add filters into the `hard_filters` set

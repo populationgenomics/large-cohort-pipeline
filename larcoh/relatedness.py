@@ -8,6 +8,7 @@ from gnomad.sample_qc.relatedness import compute_related_samples_to_drop
 
 def run(
     dense_mt_path: Path,
+    sample_qc_ht_path: Path,
     out_relatedness_ht_path: Path,
     out_relateds_to_drop_ht_path: Path,
     tmp_prefix: Path,
@@ -20,7 +21,7 @@ def run(
     )
     flag_related(
         relatedness_ht=relatedness_ht,
-        sample_ht=dense_mt.cols(),
+        sample_qc_ht=hl.read_table(str(sample_qc_ht_path)),
         out_relateds_to_drop_ht_path=out_relateds_to_drop_ht_path,
         tmp_prefix=tmp_prefix,
     )
@@ -76,13 +77,15 @@ def pcrelate(
 
 def flag_related(
     relatedness_ht: hl.Table,
-    sample_ht: hl.Table,
+    sample_qc_ht: hl.Table,
     out_relateds_to_drop_ht_path: Path,
     tmp_prefix: Path,
 ) -> hl.Table:
     """
     Rank samples and flag samples to drop so there is only one sample per family
     left, with the highest rank in the family.
+
+    `sample_qc_ht` has to have a `filters` and `chr20_mean_dp` columns.
     """
     logging.info(f'Flagging related samples to drop')
     if can_reuse(out_relateds_to_drop_ht_path):
@@ -93,7 +96,7 @@ def flag_related(
         rank_ht = hl.read_table(str(rankings_ht_path))
     else:
         rank_ht = _compute_sample_rankings(
-            sample_ht=sample_ht,
+            ht=sample_qc_ht,
         ).checkpoint(str(rankings_ht_path), overwrite=True)
 
     try:
@@ -119,18 +122,16 @@ def flag_related(
     return to_drop_ht
 
 
-def _compute_sample_rankings(
-    sample_ht: hl.Table,
-) -> hl.Table:
+def _compute_sample_rankings(ht: hl.Table) -> hl.Table:
     """
     Orders samples by hard filters and coverage and adds rank, which is the lower,
     the better.
 
-    @param sample_ht: table with a `chr20_mean_dp` row field
+    @param ht: table with a `chr20_mean_dp` and `filters` fields.
     @return: table ordered by rank, with the following row fields:
         `rank`, `filtered`
     """
-    ht = sample_ht.drop(*list(sample_ht.globals.dtype.keys()))
+    ht = ht.drop(*list(ht.globals.dtype.keys()))
     ht = ht.select(
         'chr20_mean_dp',
         filtered=hl.len(ht.filters) > 0,

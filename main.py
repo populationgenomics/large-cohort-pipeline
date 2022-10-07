@@ -5,6 +5,8 @@ from cpg_utils import Path, to_path
 
 from cpg_utils.config import get_config, set_config_paths
 from cpg_utils.hail_batch import dataset_path
+from cpg_utils.workflows.batch import get_batch
+from cpg_utils.workflows.inputs import get_cohort
 
 from cpg_utils.workflows.targets import Cohort
 from cpg_utils.workflows.workflow import (
@@ -109,7 +111,7 @@ class DenseSubset(CohortStage):
         return self.make_outputs(cohort, self.expected_outputs(cohort), [j])
 
 
-@stage(required_stages=[DenseSubset])
+@stage(required_stages=[SampleQC, DenseSubset])
 class Relatedness(CohortStage):
     def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
         return dict(
@@ -126,6 +128,7 @@ class Relatedness(CohortStage):
             function=run,
             function_path_args=dict(
                 dense_mt_path=inputs.as_path(cohort, DenseSubset),
+                sample_qc_ht_path=inputs.as_path(cohort, SampleQC),
                 out_relatedness_ht_path=self.expected_outputs(cohort)['relatedness'],
                 out_relateds_to_drop_ht_path=self.expected_outputs(cohort)[
                     'relateds_to_drop'
@@ -208,7 +211,7 @@ class AncestryPlots(CohortStage):
 @stage(required_stages=[Combiner, SampleQC, Relatedness])
 class MakeSiteOnlyVcf(CohortStage):
     def expected_outputs(self, cohort: Cohort) -> Path:
-        return self.tmp_prefix / 'site_only.vcf.gz'
+        return self.tmp_prefix / 'siteonly.vcf.gz'
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
         from larcoh.dataproc_utils import dataproc_job
@@ -236,6 +239,24 @@ class MakeSiteOnlyVcf(CohortStage):
         return self.make_outputs(cohort, self.expected_outputs(cohort), [j])
 
 
+@stage(required_stages=MakeSiteOnlyVcf)
+class Vqsr(CohortStage):
+    def expected_outputs(self, cohort: Cohort):
+        return self.tmp_prefix / 'siteonly.vqsr.vcf.gz'
+
+    def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
+        from larcoh.variant_qc.hb_vqsr_jobs import add_vqsr_jobs
+
+        jobs = add_vqsr_jobs(
+            b=get_batch(),
+            input_siteonly_vcf_path=inputs.as_path(cohort, MakeSiteOnlyVcf),
+            tmp_prefix=self.tmp_prefix,
+            gvcf_count=len(get_cohort().get_samples()),
+            out_path=self.expected_outputs(cohort),
+        )
+        return self.make_outputs(cohort, data=self.expected_outputs(cohort), jobs=jobs)
+
+
 @click.command()
 @click.argument('config_paths', nargs=-1)
 def main(config_paths: list[str]):
@@ -250,18 +271,12 @@ def main(config_paths: list[str]):
         config_paths += _env_var.split(',') + list(config_paths)
     set_config_paths(list(config_paths))
 
-    # from larcoh.variant_qc.hb_vqsr_jobs import add_vqsr_jobs
-    #
-    # vqsr_jobs = add_vqsr_jobs()
-    # for j in vqsr_jobs:
-    #     j.depends_on(siteonly_vcf_j)
-    #
     # dataproc_job(
     #     script_name='scripts/finalise_variant_qc.py',
     #     depends_on=[combiner_j, sample_qc_j, ancestry_j] + vqsr_jobs,
     # )
 
-    run_workflow([MakeSiteOnlyVcf])
+    run_workflow([Vqsr])
 
 
 if __name__ == '__main__':
