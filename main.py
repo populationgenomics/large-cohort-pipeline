@@ -4,7 +4,6 @@ import coloredlogs
 from cpg_utils import Path, to_path
 
 from cpg_utils.config import get_config, set_config_paths
-from cpg_utils.hail_batch import dataset_path
 from cpg_utils.workflows.batch import get_batch
 from cpg_utils.workflows.inputs import get_cohort
 

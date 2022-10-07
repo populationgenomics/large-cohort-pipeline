@@ -44,12 +44,9 @@ def vds_to_site_only_ht(
     if can_reuse(out_ht_path):
         return hl.read_table(str(out_ht_path))
 
-    mt = vds.variant_data
+    mt = hl.vds.to_dense_mt(vds)
     mt = mt.filter_cols(hl.len(sample_qc_ht[mt.col_key].filters) > 0, keep=False)
-    sample_qc_ht = sample_qc_ht.annotate(
-        related=hl.is_defined(relateds_to_drop_ht[sample_qc_ht.key]),
-    )
-    mt = mt.filter_cols(sample_qc_ht[mt.col_key].related, keep=False)
+    mt = mt.filter_cols(hl.is_defined(relateds_to_drop_ht[mt.col_key]), keep=False)
     mt = _filter_rows_and_add_tags(mt)
     var_ht = _create_info_ht(mt, n_partitions=mt.n_partitions())
     var_ht = adjust_vcf_incompatible_types(
@@ -66,8 +63,6 @@ def vds_to_site_only_ht(
 
 
 def _filter_rows_and_add_tags(mt: hl.MatrixTable) -> hl.MatrixTable:
-    mt = hl.experimental.densify(mt)
-
     # Filter to only non-reference sites.
     # An example of a variant with hl.len(mt.alleles) > 1 BUT NOT
     # hl.agg.any(mt.LGT.is_non_ref()) is a variant that spans a deletion,

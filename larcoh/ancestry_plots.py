@@ -181,7 +181,7 @@ def _plot_pca(
         plots.append(plot)
         if out_path_pattern:
             html = file_html(plot, CDN, title)
-            plot_filename_html = out_path_pattern.format(
+            plot_filename_html = str(out_path_pattern).format(
                 scope=scope, pci=pc2, ext='html'
             )
             with hl.hadoop_open(plot_filename_html, 'w') as f:
@@ -210,7 +210,7 @@ def _plot_loadings(number_of_pcs, loadings_ht, out_path_pattern=None):
         plots.append(plot)
         if out_path_pattern:
             html = file_html(plot, CDN, 'my plot')
-            plot_filename_html = out_path_pattern.format(
+            plot_filename_html = str(out_path_pattern).format(
                 scope='loadings', pci=pc, ext='html'
             )
             with hl.hadoop_open(plot_filename_html, 'w') as f:
