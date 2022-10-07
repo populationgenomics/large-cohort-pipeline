@@ -50,6 +50,7 @@ def test_larcoh(mocker: MockFixture):
     results_prefix = (
         to_path(__file__).parent / 'results' / os.getenv('TEST_TIMESTAMP', timestamp())
     ).absolute()
+    results_prefix.mkdir(parents=True, exist_ok=True)
 
     _set_config(
         results_prefix=results_prefix,
