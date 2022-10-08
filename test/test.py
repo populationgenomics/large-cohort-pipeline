@@ -81,7 +81,7 @@ def test_larcoh(mocker: MockFixture):
         ancestry_pca,
         ancestry_plots,
     )
-    from larcoh.variant_qc import site_only_vcf, hb_vqsr_jobs, load_vqsr
+    from larcoh.variant_qc import site_only_vcf, hb_vqsr_jobs, annotate
     from larcoh.utils import start_hail_context
 
     start_hail_context()
@@ -134,13 +134,15 @@ def test_larcoh(mocker: MockFixture):
         inferred_pop_ht_path=inferred_pop_ht_path,
     )
 
+    vcf_path = results_prefix / 'siteonly.vcf.gz'
     site_only_vcf.run(
         vds_path=vds_path,
         sample_qc_ht_path=sample_qc_ht_path,
         relateds_to_drop_ht_path=relateds_to_drop_ht_path,
-        out_vcf_path=results_prefix / 'siteonly.vcf.gz',
+        out_vcf_path=vcf_path,
         tmp_prefix=results_prefix / 'tmp',
     )
 
     assert exists(vds_path)
     assert exists(results_prefix / 'plots' / 'dataset_pc1.html')
+    assert exists(vcf_path)

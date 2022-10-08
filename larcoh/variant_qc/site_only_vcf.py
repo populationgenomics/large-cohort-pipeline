@@ -28,7 +28,7 @@ def run(
         relateds_to_drop_ht=relateds_to_drop_ht,
         tmp_prefix=tmp_prefix,
     )
-    hl.export_vcf(ht, str(out_vcf_path))
+    hl.export_vcf(ht, str(out_vcf_path), tabix=True)
 
 
 def vds_to_site_only_ht(

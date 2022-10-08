@@ -209,8 +209,11 @@ class AncestryPlots(CohortStage):
 
 @stage(required_stages=[Combiner, SampleQC, Relatedness])
 class MakeSiteOnlyVcf(CohortStage):
-    def expected_outputs(self, cohort: Cohort) -> Path:
-        return self.tmp_prefix / 'siteonly.vcf.gz'
+    def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
+        return {
+            'vcf': self.tmp_prefix / 'siteonly.vcf.gz',
+            'tbi': self.tmp_prefix / 'siteonly.vcf.gz.tbi',
+        }
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
         from larcoh.dataproc_utils import dataproc_job
@@ -225,7 +228,7 @@ class MakeSiteOnlyVcf(CohortStage):
                 relateds_to_drop_ht_path=inputs.as_path(
                     cohort, Relatedness, id='relateds_to_drop'
                 ),
-                out_vcf_path=self.expected_outputs(cohort),
+                out_vcf_path=self.expected_outputs(cohort)['vcf'],
                 tmp_prefix=self.tmp_prefix,
             ),
             depends_on=inputs.get_jobs(cohort),
@@ -240,8 +243,11 @@ class MakeSiteOnlyVcf(CohortStage):
 
 @stage(required_stages=MakeSiteOnlyVcf)
 class Vqsr(CohortStage):
-    def expected_outputs(self, cohort: Cohort):
-        return self.tmp_prefix / 'siteonly.vqsr.vcf.gz'
+    def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
+        return {
+            'vcf': self.tmp_prefix / 'siteonly.vqsr.vcf.gz',
+            'tbi': self.tmp_prefix / 'siteonly.vqsr.vcf.gz.tbi',
+        }
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
         from larcoh.variant_qc.hb_vqsr_jobs import add_vqsr_jobs
@@ -251,7 +257,7 @@ class Vqsr(CohortStage):
             input_siteonly_vcf_path=inputs.as_path(cohort, MakeSiteOnlyVcf),
             tmp_prefix=self.tmp_prefix,
             gvcf_count=len(get_cohort().get_samples()),
-            out_path=self.expected_outputs(cohort),
+            out_path=self.expected_outputs(cohort)['vcf'],
         )
         return self.make_outputs(cohort, data=self.expected_outputs(cohort), jobs=jobs)
 
@@ -271,7 +277,7 @@ class VariantAnnotation(CohortStage):
             job_name=self.__class__.__name__,
             function=run,
             function_path_args=dict(
-                site_only_vcf_path=inputs.as_path(cohort, Vqsr),
+                site_only_vcf_path=inputs.as_path(cohort, Vqsr, id='vcf'),
                 vqsr_ht_path=self.expected_outputs(cohort)['vqsr_ht'],
             ),
             depends_on=inputs.get_jobs(cohort),
