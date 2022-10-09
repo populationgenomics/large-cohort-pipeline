@@ -10,7 +10,7 @@ max_kin = 0.2
 # sample metadata tag to get population label (continental_pop, subcontinental_pop)
 pop_tag = 'continental_pop'
 
-[larhoc.sample_qc_cutoffs]
+[larcoh.sample_qc_cutoffs]
 min_coverage = 18
 max_n_snps = 8000000
 min_n_snps = 2400000

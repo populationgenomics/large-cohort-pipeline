@@ -20,24 +20,34 @@ coloredlogs.install(level='INFO')
 def _set_config(results_prefix: Path, extra_conf: dict | None = None):
     with (to_path(__file__).parent.parent / 'configs' / 'larcoh.toml').open() as f:
         d = toml.load(f)
-    d |= {
-        'workflow': {
-            'local_dir': str(results_prefix),
-            'dataset_gcp_project': 'thousand-genomes',
-            'dataset': 'thousand-genomes',
-            'access_level': 'test',
-            'sequencing_type': 'genome',
-            'output_version': 'v10',
-            'check_intermediates': True,
-            'path_scheme': 'local',
-            'reference_prefix': str(to_path(__file__).parent / 'data' / 'reference'),
+    update_dict(
+        d,
+        {
+            'workflow': {
+                'local_dir': str(results_prefix),
+                'dataset_gcp_project': 'thousand-genomes',
+                'dataset': 'thousand-genomes',
+                'access_level': 'test',
+                'sequencing_type': 'genome',
+                'output_version': 'v10',
+                'check_intermediates': True,
+                'path_scheme': 'local',
+                'reference_prefix': str(
+                    to_path(__file__).parent / 'data' / 'reference'
+                ),
+            },
+            'larcoh': {
+                'sample_qc_cutoffs': {
+                    'min_n_snps': 2500,  # to make it pass for toy subset
+                }
+            },
+            'hail': {
+                'billing_project': 'thousand-genomes',
+                'dry_run': True,
+                'query_backend': 'spark_local',
+            },
         },
-        'hail': {
-            'billing_project': 'thousand-genomes',
-            'dry_run': True,
-            'query_backend': 'spark_local',
-        },
-    }
+    )
     if extra_conf:
         update_dict(d, extra_conf)
     with (out_path := results_prefix / 'config.toml').open('w') as f:
@@ -83,7 +93,7 @@ def test_larcoh(mocker: MockFixture):
         ancestry_pca,
         ancestry_plots,
     )
-    from larcoh.variant_qc import site_only_vcf, hb_vqsr_jobs, annotate
+    from larcoh.variant_qc import site_only_vcf, hb_vqsr_jobs, load_vqsr, frequencies
     from larcoh.utils import start_hail_context
 
     start_hail_context()

@@ -2,37 +2,33 @@ import hail as hl
 import logging
 
 from cpg_utils import Path
+from cpg_utils.workflows.utils import can_reuse
 from gnomad.utils.sparse_mt import split_info_annotation
 
 
 def run(
     site_only_vcf_path: Path,
-    vqsr_ht_path: Path,
+    out_ht_path: Path,
 ):
-    load_vqsr(site_only_vcf_path, vqsr_ht_path)
-
-    # TODO: generate QC annotations
-
-    # TODO: generate frequencies
-
-    # TODO: making final MT
+    load_vqsr(site_only_vcf_path, out_ht_path)
 
 
 def load_vqsr(
     site_only_vcf_path: Path,
     out_ht_path: Path,
-):
+) -> hl.Table:
     """
     Convert VQSR VCF to HT
     """
+    if can_reuse(out_ht_path):
+        return hl.read_table(str(out_ht_path))
+
     logging.info(f'Importing VQSR annotations...')
-    mt = hl.import_vcf(
-        site_only_vcf_path,
+    ht = hl.import_vcf(
+        str(site_only_vcf_path),
         force_bgz=True,
         reference_genome='GRCh38',
-    )
-
-    ht = mt.rows()
+    ).rows()
 
     # some numeric fields are loaded as strings, so converting them to ints and floats
     ht = ht.annotate(
@@ -61,3 +57,4 @@ def load_vqsr(
     logging.info(
         f'Found {unsplit_count} unsplit and {split_count} split variants with VQSR annotations'
     )
+    return ht

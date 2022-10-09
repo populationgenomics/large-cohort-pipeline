@@ -23,26 +23,26 @@ def run(
     sample_qc_ht = hl.read_table(str(sample_qc_ht_path))
     relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
 
-    ht = vds_to_site_only_ht(
+    site_only_ht_path = tmp_prefix / 'site_only.ht'
+    site_only_ht = vds_to_site_only_ht(
         vds=vds,
         sample_qc_ht=sample_qc_ht,
         relateds_to_drop_ht=relateds_to_drop_ht,
-        tmp_prefix=tmp_prefix,
+        out_ht_path=site_only_ht_path,
     )
     logging.info(f'Writing site-only VCF to {out_vcf_path}')
-    hl.export_vcf(ht, str(out_vcf_path), tabix=True)
+    hl.export_vcf(site_only_ht, str(out_vcf_path), tabix=True)
 
 
 def vds_to_site_only_ht(
     vds: hl.vds.VariantDataset,
     sample_qc_ht: hl.Table,
     relateds_to_drop_ht: hl.Table,
-    tmp_prefix: Path,
+    out_ht_path: Path,
 ) -> hl.Table:
     """
     Convert VDS into sites-only VCF-ready table.
     """
-    out_ht_path = tmp_prefix / 'site_only.ht'
     if can_reuse(out_ht_path):
         return hl.read_table(str(out_ht_path))
 
