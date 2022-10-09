@@ -9,93 +9,248 @@ A [Hail Query](https://hail.is/) workflow for large germline genomic variant cal
 ## Usage
 
 ```sh
-analysis-runner --dataset prophecy --access-level test --description "test larcoh" --output-dir "seqr-loader-test" \
+analysis-runner --dataset prophecy --access-level test --description "test larcoh" --output-dir "larcoh" \
 --config configs/prophecy-test.toml \
 main.py
 ```
 
-The workflow will find input GVCFs in the `main` bucket, write the resulting VDS into the `test` bucket: `gs://cpg-prophecy-test/vds`, and other annotation tables into `gs://cpg-prophecy-test/larcoh`, specifically:
+The workflow will find GVCFs for input samples using Metamist, along with available sample metadata (e.g. known population labels, sex, QC), and would write the results into the `gs://cpg-prophecy-test` bucket.
 
-* `gs://cpg-prophecy-test/vds/v01.vds` raw combined GVCFs in sparse dataset format,
-* `gs://cpg-prophecy-test/larcoh/v01/sample_qc.ht` sample-level metadata and QC:
-  * Input metadata,
-  * Inferred sex,
-  * `hl.sample_qc`
-* `gs://cpg-prophecy-test/larcoh/v01/relatedness.ht` pairwise sample relatedness pcrelate results,
-* `gs://cpg-prophecy-test/larcoh/v01/relateds_to_drop.ht` related samples to drop, with top ranking sample selected from each family,
-* `gs://cpg-prophecy-test/larcoh/v01/vqsr.ht` AS-VQSR results,
-* `gs://cpg-prophecy-test/larcoh/v01/frequencies.ht` row-level 
-* `gs://cpg-prophecy-test/larcoh/v01/ancestry` PCA results:
+## Outputs
+
+### VDS
+
+GVCFs are combined into a [VDS folder format](https://hail.is/docs/0.2/vds/hail.vds.VariantDataset.html#variantdataset) which is writen to `gs://cpg-prophecy-test/vds/v01.vds`.
+
+### Sample QC
+
+* Sample-level metadata and QC is written to `gs://cpg-prophecy-test/larcoh/v01/sample_qc.ht`, with the following row fields.
+
+Metamist metadata:
+
+```
+'s': str
+'external_id': str
+'dataset': str
+'gvcf': str
+'sex': str
+'continental_pop': str
+'subcontinental_pop': str
+```
+
+[hl.sample_qc](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.sample_qc) annotations:
+
+```
+'sample_qc': struct {
+    n_het: int64,
+    n_hom_var: int64,
+    n_non_ref: int64,
+    n_singleton: int64,
+    n_singleton_ti: int64,
+    n_singleton_tv: int64,
+    n_snp: int64,
+    n_insertion: int64,
+    n_deletion: int64,
+    n_transition: int64,
+    n_transversion: int64,
+    n_star: int64,
+    r_ti_tv: float64,
+    r_ti_tv_singleton: float64,
+    r_het_hom_var: float64,
+    r_insertion_deletion: float64,
+    bases_over_gq_threshold: tuple (
+        int64,
+        int64,
+        int64
+    ),
+    bases_over_dp_threshold: tuple (
+        int64,
+        int64,
+        int64,
+        int64,
+        int64
+    )
+}
+```
+
+[Sex imputation](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.impute_sex):
+
+```
+'is_female': bool
+'chr20_mean_dp': float64
+'chrX_mean_dp': float64
+'chrX_ploidy': float64
+'chrY_mean_dp': float64
+'chrY_ploidy': float64
+'X_karyotype': str
+'Y_karyotype': str
+'sex_karyotype': str
+'impute_sex_stats': struct {
+    f_stat: float64,
+    n_called: int64,
+    expected_homs: float64,
+    observed_homs: int64
+}
+```
+
+Soft filters are populated based on the above results:
+
+```
+'filters': set<str>
+```
+
+Sample-QC based filters are calculated according to the thresholds specified in the config TOML, with available values `low_coverage` and `bad_sample_qc_metrics`:
+
+```toml
+[larcoh.sample_qc_cutoffs]
+min_coverage = 18
+max_n_snps = 8000000
+min_n_snps = 2400000
+max_n_singletons = 800000
+max_r_duplication = 0.3
+max_r_het_hom = 3.3
+```
+
+Sex imputation based filters are `sex_aneuploidy` and `ambiguous_sex`.
+
+### Relatedness
+
+[PC-Relate method](https://hail.is/docs/0.2/methods/relatedness.html#hail.methods.pc_relate) is used to identify pairs of the 1st and the 2nd degree relatives (kin coefficient threshold - below which samples are considered unrelated - is specified as `larcoh.max_kin` in TOML). Pairwise sample relatedness matrix is written as a Hail table index by a tuple of sample IDs: `gs://cpg-prophecy-test/larcoh/v01/relatedness.ht`
+
+```
+Row fields:
+    'i': str
+    'j': str
+    'kin': float64
+    'ibd0': float64
+    'ibd1': float64
+    'ibd2': float64
+----------------------------------------
+Key: ['i', 'j']
+```
+
+`gs://cpg-prophecy-test/larcoh/v01/relateds_to_drop.ht` is a sample-level table which contains related samples to drop, with top ranking sample selected from each family. Sets of unrelated individuals are determined using Hail's [`maximal_independent_set`](https://hail.is/docs/0.2/methods/misc.html?highlight=maximal_independent_set#hail.methods.maximal_independent_set). 
+
+```
+Row fields:
+    's': str
+    'rank': int64
+----------------------------------------
+Key: ['s']
+```
+
+[//]: # (TODO: pedigree check)
+
+### Ancestry
+
+PCA results are written into `gs://cpg-prophecy-test/larcoh/v01/ancestry`:
   * `gs://cpg-prophecy-test/larcoh/v01/ancestry/eigenvalues.ht`
   * `gs://cpg-prophecy-test/larcoh/v01/ancestry/loadings.ht`
   * `gs://cpg-prophecy-test/larcoh/v01/ancestry/scores.ht`
-  * `gs://cpg-prophecy-test/larcoh/v01/ancestry/inferred_pop.ht` - sample-level table with inferred population labels (`ht.pop`) from the PCA analysis, as long there are samples with known `continental_pop` provided
-* `gs://cpg-prophecy-test-web/larcoh/v01/ancestry/*` - bucket with PCA and loadings plots, accessible as https://test-web.populationgenomics.org.au/prophecy/larcoh/ancestry/*
-* `gs://cpg-prophecy-test/larcoh/v01/dense-subset.mt` dense matrix table used for PCA, relatedness, and sex inferring.
+ 
+When there are samples with known `continental_pop` available, using the PCA results a random forest method is used to infer population labels. The method is trained using 16 principal components as features on samples with known ancestry. Ancestry was assigned to all samples for which the probability of that ancestry was high enough (the threshold is configured as `larcoh.min_pop_prob` in TOML). Results are written as sample-level table `gs://cpg-prophecy-test/larcoh/v01/ancestry/inferred_pop.ht`.
 
-## Overview of the pipeline steps
+```
+Row fields:
+    's': str
+    'scores': array<float64>
+    'pop': str
+    'is_training': bool
+    'pca_scores': array<float64>
+----------------------------------------
+Key: ['s']
+``` 
 
-1. Find inputs from metamist.
+Plots for PCA and loadings are written to `gs://cpg-prophecy-test-web/larcoh/v01/ancestry/*`, a bucket that is exposed as https://test-web.populationgenomics.org.au/prophecy/larcoh/ancestry/*
+ 
+### Dense subset
 
-1. Run the GVCF combiner using `scripts/combine_gvcfs.py`. The script merges GVCFs into a sparse VDS format using [Hail's vcf_combiner](https://hail.is/docs/0.2/experimental/vcf_combiner.html).
+For PCA, PC-related, and sex imputation, a dense subset of the original data is used. The QC variants for the subset are read from the `references.gnomad.predetermined_qc_variants` Hail table specified in the TOML config. The resulting subset is written to `gs://cpg-prophecy-test/larcoh/v01/dense-subset.mt`.
 
-1. Run the `scripts/sample_qc.py` script, that performs the [sample-level QC](#sample-qc), and generates a Table with the filtered sample IDs, as well as a metadata Table with metrics that were used for filtering (coverage, sex, ancestry, contamination, variant numbers/distributions, etc.).
+## Allele-specific variant quality score recalibration (AS-VQSR)
 
-1. Run the [allele-specific VQSR approach](#allele-specific-vqsr) to perform the variant filtration.
+Variants from good quality samples are filtered using the [AS-VQSR method](https://gatk.broadinstitute.org/hc/en-us/articles/360035531612-Variant-Quality-Score-Recalibration-VQSR-):
 
-## Sample QC
+1. Variants are exported into a sites-only VCF,
 
-The sample QC and random forest variant QC pipelines are largely a re-implementation and orchestration of [the Hail methods used for the quality control of GnomAD release](https://github.com/broadinstitute/gnomad_qc). Good summaries of gnomAD QC pipeline can be found in gnomAD update blog posts:
+1. Batch jobs are submitted to create SNP and indel recalibration models using the allele-specific version of GATK Variant Quality Score Recalibration [VQSR](https://gatkforums.broadinstitute.org/gatk/discussion/9622/allele-specific-annotation-and-filtering), with the standard GATK training resources (HapMap, Omni, 1000 Genomes, Mills indels), and the following features:
+   
+   * SNVs:   `AS_FS`, `AS_SOR`, `AS_ReadPosRankSum`, `AS_MQRankSum`, `AS_QD`, `AS_MQ`,
+   * Indels: `AS_FS`, `AS_SOR`, `AS_ReadPosRankSum`, `AS_MQRankSum`, `AS_QD`.
+   
+1. THe models are applied to the VCFs and combine them back into one VCF.
+   
+1. VCF is converted back into a sites-only locus-level Hail table `gs://cpg-prophecy-test/larcoh/v01/vqsr.ht`, with split multiallelics.
+
+```
+Row fields:
+    'locus': locus<GRCh38>
+    'alleles': array<str>
+    'filters': set<str>
+    'info': struct {
+        NEGATIVE_TRAIN_SITE: bool,
+        POSITIVE_TRAIN_SITE: bool,
+        culprit: str
+    }
+    'a_index': int32
+    'was_split': bool
+```
+
+Note that the `info.AS-*` annotations used for AS-VQSR are dropped, and only the resulting filter label is appended into the `filters` field, e.g. `VQSRTrancheINDEL99.50to99.90`, `VQSRTrancheSNP99.00to99.90+`, etc. The AS_VQSLOD thresholds for assigning filters are configurable in TOML as `larhoc.vqsr.snp_filter_level` and `larhoc.vqsr.indel_filter_level`.
+
+This pipeline is largely compiled from the following two WDL workflows:
+   
+1. `hail-ukbb-200k-callset/GenotypeAndFilter.AS.wdl`
+
+2. The [Broad VQSR workflow](https://github.com/broadinstitute/warp/blob/develop/pipelines/broad/dna_seq/germline/joint_genotyping/JointGenotyping.wdl) documented [here](https://gatk.broadinstitute.org/hc/en-us/articles/360035531112--How-to-Filter-variants-either-with-VQSR-or-by-hard-filtering), translated from WDL with a help of [Janis](https://github.com/PMCC-BioinformaticsCore/janis).
+
+### Frequencies
+
+Frequencies are calculated using the Hail's [hl.variant_qc](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.variant_qc) method from good quality samples, and written to `gs://cpg-prophecy-test/larcoh/v01/frequencies.ht` locus-level table with split multiallelics:
+
+```
+Row fields:
+    'locus': locus<GRCh38>
+    'alleles': array<str>
+    'a_index': int32
+    'was_split': bool
+    'InbreedingCoeff': float64
+    'dp_stats': struct {
+        mean: float64,
+        stdev: float64,
+        min: float64,
+        max: float64
+    }
+    'gq_stats': struct {
+        mean: float64,
+        stdev: float64,
+        min: float64,
+        max: float64
+    }
+    'AC': array<int32>
+    'AF': array<float64>
+    'AN': int32
+    'homozygote_count': array<int32>
+    'call_rate': float64
+    'n_called': int64
+    'n_not_called': int64
+    'n_filtered': int64
+    'n_het': int64
+    'n_non_ref': int64
+    'het_freq_hwe': float64
+    'p_value_hwe': float64
+    'p_value_excess_het': float64
+----------------------------------------
+Key: ['locus', 'alleles']
+```
+
+
+### Gnomad QC
+
+The workflow is largely inspired by [the Hail pipeline used for the QC of gnomAD releases](https://github.com/broadinstitute/gnomad_qc). Good summaries of gnomAD QC can be found in gnomAD update blog posts:
 
 * [https://macarthurlab.org/2017/02/27/the-genome-aggregation-database-gnomad](https://macarthurlab.org/2017/02/27/the-genome-aggregation-database-gnomad)
 * [https://macarthurlab.org/2018/10/17/gnomad-v2-1](https://macarthurlab.org/2018/10/17/gnomad-v2-1)
 * [https://macarthurlab.org/2019/10/16/gnomad-v3-0](https://macarthurlab.org/2019/10/16/gnomad-v3-0)
 * [https://gnomad.broadinstitute.org/blog/2020-10-gnomad-v3-1-new-content-methods-annotations-and-data-availability/#sample-and-variant-quality-control](https://gnomad.broadinstitute.org/blog/2020-10-gnomad-v3-1-new-content-methods-annotations-and-data-availability/#sample-and-variant-quality-control)
 * [https://blog.hail.is/whole-exome-and-whole-genome-sequencing-recommendations/](https://blog.hail.is/whole-exome-and-whole-genome-sequencing-recommendations/)
-
-Here we give a brief overview of the sample QC steps:
-
-   1. Compute sample QC metrics using Hail’s [`sample_qc`](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.sample_qc) module on all autosomal bi-allelic SNVs.
-
-   1. Filter outlier samples using the following cutoffs. Note that the most up to date cutoffs are speified in the configuration file [filter_cutoffs.yaml](joint_calling/filter_cutoffs.yaml), which can be overridden with `--filter-cutoffs-file`.
-
-   1. Filter using BAM-level metrics was performed when such metrics were available. We removed samples that were outliers for:
-
-      * Contamination: freemix > 5% (`call-UnmappedBamToAlignedBam/UnmappedBamToAlignedBam/*/call-CheckContamination/*.selfSM`/`FREEMIX`)
-      * Chimeras: > 5% (`call-AggregatedBamQC/AggregatedBamQC/*/call-CollectAggregationMetrics/*.alignment_summary_metrics`/`PCT_CHIMERAS`)
-      * Duplication: > 30% (`call-UnmappedBamToAlignedBam/UnmappedBamToAlignedBam/*/call-MarkDuplicates/*.duplicate_metrics`/`PERCENT_DUPLICATION`)
-      * Median insert size: < 250 (`call-AggregatedBamQC/AggregatedBamQC/*/call-CollectAggregationMetrics/*.insert_size_metrics`/`MEDIAN_INSERT_SIZE`)
-      * Median coverage < 18X (calculated from the GVCFs).
-
-   1. Sex inferred for each sample with Hail's [`impute_sex`](https://hail.is/docs/0.2/methods/genetics.html?highlight=impute_sex#hail.methods.impute_sex). Filter samples with sex chromosome aneuploidies or ambiguous sex assignment.
-
-   1. Note that all filtering above makes it exclude samples from the variant QC modelling, as well as from the AC/AF/AN frequency calculation. However, it keeps the samples in the final matrix table, with labels in `mt.meta.hardfilter`.
-
-   1. Relatedness inferred between samples using Hail's[`pc_relate`](https://hail.is/docs/0.2/methods/genetics.html?highlight=pc_relate#hail.methods.pc_relate). Identified pairs of 1st and 2nd degree relatives. Filter to a set of unrelated individuals using Hail's [`maximal_independent_set`](https://hail.is/docs/0.2/methods/misc.html?highlight=maximal_independent_set#hail.methods.maximal_independent_set) that tries to keep as many samples as possible. When multiple samples could be selected, we kept the sample with the highest coverage.
-   
-   1. PCA was a ran on high-quality variants, and RF was trained using 16 principal components as features on samples with known ancestry. Ancestry was assigned to all samples for which the probability of that ancestry was >75%.
-   
-   1. Hail [`sample_qc`](https://hail.is/docs/0.2/methods/genetics.html#hail.methods.sample_qc) was used stratified by 8 ancestry assignment PCs. Within each PC, outliers were filtered if they are 4 median absolute deviations (MADs) away from the median for the following metrics: `n_snp`, `r_ti_tv`, `r_insertion_deletion`, `n_insertion`, `n_deletion`, `r_het_hom_var`, `n_het`, `n_hom_var`, `n_transition`, `n_transversion`, or 8 MADs away from the median number of singletons (`n_singleton` metric).
-
-
-## Allele-specific variant quality score recalibration (AS-VQSR)
-
-   1. Export variants into a sites-only VCF and split it into SNPs and indels, as well as region-wise for parallel processing.
-   
-   1. Run Gnarly Genotyper to perform "quick and dirty" joint genotyping.
-   
-   1. Create SNP and indel recalibration models using the allele-specific version of GATK Variant Quality Score Recalibration [VQSR](https://gatkforums.broadinstitute.org/gatk/discussion/9622/allele-specific-annotation-and-filtering), using the standard GATK training resources (HapMap, Omni, 1000 Genomes, Mills indels), with the following features:
-   
-      * SNVs:   `AS_FS`, `AS_SOR`, `AS_ReadPosRankSum`, `AS_MQRankSum`, `AS_QD`, `AS_MQ`
-      * Indels: `AS_FS`, `AS_SOR`, `AS_ReadPosRankSum`, `AS_MQRankSum`, `AS_QD`
-      * No sample had a high quality genotype at this variant site (GQ>=20, DP>=10, and AB>=0.2 for heterozygotes) (all fields are populated by GATK)
-      * `InbreedingCoeff` < -0.3 (there was an excess of heterozygotes at the site compared to Hardy-Weinberg expectations) (`InbreedingCoeff` is populated by GATK)
-   
-   1. Apply the models to the VCFs and combine them back into one VCF.
-   
-   1. Import the VCF back to a matrix table.
-   
-   VQSR pipeline is a compilation from the following 2 WDL workflows:
-   
-   1. `hail-ukbb-200k-callset/GenotypeAndFilter.AS.wdl`
-   1. The [Broad VQSR workflow](https://github.com/broadinstitute/warp/blob/develop/pipelines/broad/dna_seq/germline/joint_genotyping/JointGenotyping.wdl) documented [here](https://gatk.broadinstitute.org/hc/en-us/articles/360035531112--How-to-Filter-variants-either-with-VQSR-or-by-hard-filtering), translated from WDL with a help of [Janis](https://github.com/PMCC-BioinformaticsCore/janis).
