@@ -50,7 +50,7 @@ def load_vqsr(
     ht = ht.annotate(
         filters=ht.filters.union(hl.set([ht.info.AS_FilterStatus])),
     )
-    ht.write(out_ht_path, overwrite=True)
+    ht.write(str(out_ht_path), overwrite=True)
     ht = hl.read_table(str(out_ht_path))
     logging.info(f'Wrote split HT to {out_ht_path}')
     split_count = ht.count()
