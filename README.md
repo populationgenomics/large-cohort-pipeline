@@ -9,17 +9,9 @@ A [Hail Query](https://hail.is/) pipeline for large-cohort germline genomic vari
 ## Usage
 
 ```sh
-
-```
-
-
-The workflow is implemented in Hail Query, and currently can be run using Spark backend only. In order to start the cluster, install Hail with `pip install hail`, and run:
-
-
-```sh
-analysis-runner large_cohort/main.py \
---config larcoh/configs/larcoh.toml \
---config larcoh/configs/prophecy-test.toml
+analysis-runner --dataset prophecy --description "test larcoh" --output-dir "seqr-loader-test" --access-level test \
+--config configs/prophecy-test.toml \
+main.py
 ```
 
 The workflow will find input GVCFs in the `main` bucket, and write the resulting VDS into the `test` bucket: `gs://cpg-prophecy-main/vds/v0-1.vds`, and other metadata and plots to `gs://cpg-prophecy-test/large_cohort/v0-1/*`.

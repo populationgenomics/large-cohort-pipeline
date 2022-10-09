@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+
+"""
+Entry point to run the workflow.
+"""
 import os
 import click
 import coloredlogs
