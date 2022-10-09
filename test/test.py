@@ -2,17 +2,19 @@
 Test Hail Query functions.
 """
 import os
+import coloredlogs
 from os.path import exists
 
 import toml
-from cpg_utils.hail_batch import dataset_path
 from cpg_utils import to_path, Path
-from cpg_utils.config import set_config_paths, get_config
+from cpg_utils.config import set_config_paths
 from cpg_utils.config import update_dict
 from cpg_utils.workflows.filetypes import GvcfPath
 from cpg_utils.workflows.targets import Cohort
 from cpg_utils.workflows.utils import timestamp
 from pytest_mock import MockFixture
+
+coloredlogs.install(level='INFO')
 
 
 def _set_config(results_prefix: Path, extra_conf: dict | None = None):
@@ -134,7 +136,7 @@ def test_larcoh(mocker: MockFixture):
         inferred_pop_ht_path=inferred_pop_ht_path,
     )
 
-    vcf_path = results_prefix / 'siteonly.vcf.gz'
+    vcf_path = results_prefix / 'siteonly.vcf.bgz'
     site_only_vcf.run(
         vds_path=vds_path,
         sample_qc_ht_path=sample_qc_ht_path,

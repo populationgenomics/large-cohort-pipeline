@@ -3,6 +3,7 @@
 """
 Convert to site-only table and annotate with AS fields.
 """
+import logging
 
 import hail as hl
 from cpg_utils import Path
@@ -28,6 +29,7 @@ def run(
         relateds_to_drop_ht=relateds_to_drop_ht,
         tmp_prefix=tmp_prefix,
     )
+    logging.info(f'Writing site-only VCF to {out_vcf_path}')
     hl.export_vcf(ht, str(out_vcf_path), tabix=True)
 
 

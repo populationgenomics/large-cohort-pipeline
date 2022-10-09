@@ -211,8 +211,8 @@ class AncestryPlots(CohortStage):
 class MakeSiteOnlyVcf(CohortStage):
     def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
         return {
-            'vcf': self.tmp_prefix / 'siteonly.vcf.gz',
-            'tbi': self.tmp_prefix / 'siteonly.vcf.gz.tbi',
+            'vcf': self.tmp_prefix / 'siteonly.vcf.bgz',
+            'tbi': self.tmp_prefix / 'siteonly.vcf.bgz.tbi',
         }
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
@@ -245,8 +245,8 @@ class MakeSiteOnlyVcf(CohortStage):
 class Vqsr(CohortStage):
     def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
         return {
-            'vcf': self.tmp_prefix / 'siteonly.vqsr.vcf.gz',
-            'tbi': self.tmp_prefix / 'siteonly.vqsr.vcf.gz.tbi',
+            'vcf': self.tmp_prefix / 'siteonly.vqsr.vcf.bgz',
+            'tbi': self.tmp_prefix / 'siteonly.vqsr.vcf.bgz.tbi',
         }
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
