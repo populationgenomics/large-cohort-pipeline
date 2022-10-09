@@ -156,7 +156,7 @@ def add_soft_filters(ht: hl.Table) -> hl.Table:
             | (ht.sample_qc.n_singleton > cutoffs['max_n_singletons'])
             | (ht.sample_qc.r_het_hom_var > cutoffs['max_r_het_hom'])
         ),
-        'bad_biallelic_metrics',
+        'bad_sample_qc_metrics',
     )
     ht = ht.annotate(filtered=hl.len(ht.filters) > 0)
     logging.info('Table with filters:')
