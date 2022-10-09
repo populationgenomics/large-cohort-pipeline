@@ -196,7 +196,7 @@ Row fields:
     'was_split': bool
 ```
 
-Note that the `info.AS-*` annotations used for AS-VQSR are dropped, and only the resulting filter label is appended into the `filters` field, e.g. `VQSRTrancheINDEL99.50to99.90`, `VQSRTrancheSNP99.00to99.90+`, etc. The AS_VQSLOD thresholds for assigning filters are configurable in TOML as `larhoc.vqsr.snp_filter_level` and `larhoc.vqsr.indel_filter_level`.
+Note that the `info.AS-*` annotations used for AS-VQSR are dropped, and only the resulting filter label is appended into the `filters` field, e.g. `VQSRTrancheINDEL99.50to99.90`, `VQSRTrancheSNP99.00to99.90+`, etc. The AS_VQSLOD thresholds for assigning filters are configurable in TOML as `larcoh.vqsr.snp_filter_level` and `larhoc.vqsr.indel_filter_level`.
 
 This pipeline is largely compiled from the following two WDL workflows:
    

@@ -18,7 +18,7 @@ max_n_singletons = 800000
 max_r_duplication = 0.3
 max_r_het_hom = 3.3
 
-[larhoc.vqsr]
+[larcoh.vqsr]
 # VQSR, when applying model, targets indel_filter_level and snp_filter_level
 # sensitivities. The tool matches them internally to a VQSLOD score cutoff 
 # based on the model's estimated sensitivity to a set of true variants.

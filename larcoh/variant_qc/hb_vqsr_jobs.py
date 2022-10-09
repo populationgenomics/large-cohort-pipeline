@@ -11,18 +11,13 @@ from WGS VQSR and Exome AS-VQSR settings.
 from typing import List
 
 import hailtop.batch as hb
+from cpg_utils.config import get_config
 from hailtop.batch.job import Job
 
 from cpg_utils import Path
 from cpg_utils.hail_batch import reference_path, image_path, command
 from cpg_utils.workflows.resources import STANDARD, HIGHMEM
 from .intervals import get_intervals, gather_vcfs, subset_vcf
-
-# When applying model, VQSR targets indel_filter_level and snp_filter_level
-# sensitivities. The tool matches them internally to a VQSLOD score cutoff
-# based on the model's estimated sensitivity to a set of true variants.
-SNP_HARD_FILTER_LEVEL = 99.7
-INDEL_HARD_FILTER_LEVEL = 99.0
 
 STANDARD_FEATURES = [
     'ReadPosRankSum',
@@ -122,6 +117,12 @@ def add_vqsr_jobs(
             'axiom_poly',
         ]
     }
+
+    # When applying model, VQSR targets indel_filter_level and snp_filter_level
+    # sensitivities. The tool matches them internally to a VQSLOD score cutoff
+    # based on the model's estimated sensitivity to a set of true variants.
+    snp_filter_level = get_config()['larcoh']['vqsr']['snp_filter_level']
+    indel_filter_level = get_config()['larcoh']['vqsr']['indel_filter_level']
 
     is_small_callset = gvcf_count < 1000
     # For small callsets, we gather the VCF shards and collect QC metrics directly.
@@ -263,7 +264,7 @@ def add_vqsr_jobs(
                 tranches=snp_gathered_tranches,
                 disk_size=huge_disk,
                 use_as_annotations=use_as_annotations,
-                filter_level=SNP_HARD_FILTER_LEVEL,
+                filter_level=snp_filter_level,
                 job_attrs=(job_attrs or {}) | dict(part=f'{idx + 1}/{scatter_count}'),
             ).output_vcf
             assert isinstance(applied_snps_vcf, hb.ResourceGroup)
@@ -288,7 +289,7 @@ def add_vqsr_jobs(
             tranches=indel_recalibrator_j.tranches,
             disk_size=huge_disk,
             use_as_annotations=use_as_annotations,
-            filter_level=INDEL_HARD_FILTER_LEVEL,
+            filter_level=indel_filter_level,
             job_attrs=job_attrs,
         )
         jobs.append(apply_indel_j)
@@ -321,7 +322,7 @@ def add_vqsr_jobs(
             tranches=snps_recal_j.tranches,
             disk_size=huge_disk,
             use_as_annotations=use_as_annotations,
-            filter_level=INDEL_HARD_FILTER_LEVEL,
+            filter_level=indel_filter_level,
             job_attrs=job_attrs,
         )
         assert isinstance(apply_recal_snps_j.output_vcf, hb.ResourceGroup)
@@ -332,7 +333,7 @@ def add_vqsr_jobs(
             tranches=indel_recalibrator_j.tranches,
             disk_size=huge_disk,
             use_as_annotations=use_as_annotations,
-            filter_level=INDEL_HARD_FILTER_LEVEL,
+            filter_level=indel_filter_level,
             job_attrs=job_attrs,
         )
         jobs.append(apply_indel_j)
