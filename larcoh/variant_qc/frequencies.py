@@ -27,7 +27,7 @@ def run(
     if can_reuse(out_ht_path):
         return
 
-    vds = hl.vds.read_vds(vds_path)
+    vds = hl.vds.read_vds(str(vds_path))
     sample_qc_ht = hl.read_table(str(sample_qc_ht_path))
     relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
 
