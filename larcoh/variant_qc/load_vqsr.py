@@ -26,9 +26,17 @@ def load_vqsr(
     logging.info(f'Importing VQSR annotations...')
     ht = hl.import_vcf(
         str(site_only_vcf_path),
-        force_bgz=True,
         reference_genome='GRCh38',
     ).rows()
+    # VCF has SB fields as float in header:
+    # > ##INFO=<ID=SB,Number=1,Type=Float,Description="Strand Bias">
+    # Even though they are lists of ints, e.g. SB=6,11,2,0
+    # Hail would fail to parse it, throwing:
+    # > java.lang.NumberFormatException: For input string: "6,11,2,0"
+    # To mitigate this, we can drop the SB field before the HT is (lazily) parsed.
+    # In order words, dropping it before calling ht.write() makes sure that Hail would
+    # never attempt to actually parse it.
+    ht = ht.annotate(info=ht.info.drop('SB'))
 
     # some numeric fields are loaded as strings, so converting them to ints and floats
     ht = ht.annotate(
