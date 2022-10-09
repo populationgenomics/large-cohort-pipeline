@@ -3,7 +3,7 @@ import logging
 
 from cpg_utils import Path
 from cpg_utils.workflows.utils import can_reuse
-from gnomad.resources.grch38.gnomad import POPS_TO_REMOVE_FOR_POPMAX, DOWNSAMPLINGS
+from gnomad.resources.grch38.gnomad import POPS_TO_REMOVE_FOR_POPMAX
 from gnomad.sample_qc.sex import adjusted_sex_ploidy_expr
 from gnomad.utils.annotations import (
     get_adj_expr,
@@ -22,7 +22,6 @@ def run(
     vds_path: Path,
     sample_qc_ht_path: Path,
     relateds_to_drop_ht_path: Path,
-    inferred_pop_ht_path: Path,
     out_ht_path: Path,
 ):
     if can_reuse(out_ht_path):
@@ -31,13 +30,11 @@ def run(
     vds = hl.vds.read_vds(str(vds_path))
     sample_qc_ht = hl.read_table(str(sample_qc_ht_path))
     relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
-    inferred_pop_ht = hl.read_table(str(inferred_pop_ht_path))
 
     freq_ht = frequency_annotations(
         vds,
         sample_qc_ht,
         relateds_to_drop_ht,
-        inferred_pop_ht,
     )
     logging.info(f'Writing out frequency data to {out_ht_path}...')
     freq_ht.write(str(out_ht_path), overwrite=True)
@@ -47,7 +44,6 @@ def frequency_annotations(
     vds: hl.vds.VariantDataset,
     sample_qc_ht: hl.Table,
     relateds_to_drop_ht: hl.Table,
-    inferred_pop_ht: hl.Table,
 ) -> hl.Table:
     """
     Generate frequency annotations (AF, AC, AN, InbreedingCoeff)
@@ -71,42 +67,24 @@ def frequency_annotations(
 
     logging.info('Computing adj and sex adjusted genotypes...')
     mt = mt.annotate_entries(
-        GT=adjusted_sex_ploidy_expr(mt.locus, mt.GT, mt.meta.sex_karyotype),
+        GT=adjusted_sex_ploidy_expr(
+            mt.locus, mt.GT, sample_qc_ht[mt.col_key].sex_karyotype
+        ),
         adj=get_adj_expr(mt.GT, mt.GQ, mt.DP, mt.AD),
     )
 
     logging.info('Generating frequency data...')
+    mt = hl.variant_qc(mt)
 
-    mt = _compute_age_hists(mt, sample_qc_ht)
+    logging.info('Calculating InbreedingCoeff...')
+    # NOTE: This is not the ideal location to calculate this, but added here
+    # to avoid another densify.
+    # The algorithm assumes all samples are unrelated:
+    mt = mt.annotate_rows(InbreedingCoeff=bi_allelic_site_inbreeding_expr(mt.GT))
 
-    mt = annotate_freq(
-        mt,
-        sex_expr=sample_qc_ht[mt.col_key].sex_karyotype,
-        pop_expr=inferred_pop_ht[mt.col_key].pop,
-        downsamplings=DOWNSAMPLINGS,
-    )
-
-    # Remove all loci with raw AC=0
-    mt = mt.filter_rows(mt.freq[1].AC > 0)
-
-    # Create a look-up Dictionary for entries contained
-    # in the frequency annotation array
-    mt = mt.annotate_globals(
-        freq_index_dict=make_freq_index_dict(
-            freq_meta=hl.eval(mt.freq_meta),
-            downsamplings=hl.eval(mt.downsamplings),
-            label_delimiter='-',
-        )
-    )
-
-    # Unset Y-variant AF/AC/AN for female-specific metrics
-    mt = mt.annotate_rows(freq=set_female_y_metrics_to_na_expr(mt))
-
-    mt = _calc_inbreeding_coeff(mt)
-
-    mt = _compute_filtering_af_and_popmax(mt)
-
-    freq_ht = _annotate_quality_metrics_hist(mt)
+    freq_ht = mt.rows()
+    freq_ht = freq_ht.annotate(**freq_ht.variant_qc)
+    freq_ht = freq_ht.drop('variant_qc')
     return freq_ht
 
 
@@ -136,16 +114,6 @@ def _compute_age_hists(mt: hl.MatrixTable, sample_qc_ht: hl.Table) -> hl.MatrixT
             )
         )
     return mt
-
-
-def _calc_inbreeding_coeff(mt: hl.MatrixTable) -> hl.MatrixTable:
-    """
-    NOTE: This is not the ideal location to calculate this, but added here
-    to avoid another densify
-    """
-    logging.info('Calculating InbreedingCoeff...')
-    # the algorithm assumes all samples are unrelated:
-    return mt.annotate_rows(InbreedingCoeff=bi_allelic_site_inbreeding_expr(mt.GT))
 
 
 def _compute_filtering_af_and_popmax(mt: hl.MatrixTable) -> hl.MatrixTable:
