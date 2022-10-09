@@ -22,6 +22,7 @@ def run(
     vds_path: Path,
     sample_qc_ht_path: Path,
     relateds_to_drop_ht_path: Path,
+    inferred_pop_ht_path: Path,
     out_ht_path: Path,
 ):
     if can_reuse(out_ht_path):
@@ -30,11 +31,13 @@ def run(
     vds = hl.vds.read_vds(str(vds_path))
     sample_qc_ht = hl.read_table(str(sample_qc_ht_path))
     relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
+    inferred_pop_ht = hl.read_table(str(inferred_pop_ht_path))
 
     freq_ht = frequency_annotations(
         vds,
         sample_qc_ht,
         relateds_to_drop_ht,
+        inferred_pop_ht,
     )
     logging.info(f'Writing out frequency data to {out_ht_path}...')
     freq_ht.write(str(out_ht_path), overwrite=True)
@@ -44,24 +47,27 @@ def frequency_annotations(
     vds: hl.vds.VariantDataset,
     sample_qc_ht: hl.Table,
     relateds_to_drop_ht: hl.Table,
+    inferred_pop_ht: hl.Table,
 ) -> hl.Table:
     """
     Generate frequency annotations (AF, AC, AN, InbreedingCoeff)
     """
     logging.info('Reading full sparse MT and metadata table...')
-    mt = vds.variant_data
 
-    mt = mt.filter_cols(hl.len(sample_qc_ht[mt.col_key].filters) > 0, keep=False)
-    mt = mt.filter_cols(hl.is_defined(relateds_to_drop_ht[mt.col_key]), keep=False)
-    mt = hl.experimental.sparse_split_multi(mt, filter_changed_loci=True)
+    logging.info('Splitting multiallelics')
+    vds = hl.vds.split_multi(vds, filter_changed_loci=True)
 
-    logging.info('Densify-ing...')
+    logging.info('Densifying...')
     # The reason is that sparse matrix table has got NA records representing
     # the reference blocks, which affects the calculation of frequencies.
     # That's why we need to convert it to a "dense" representation, effectively
     # dropping reference blocks.
-    mt = hl.experimental.densify(mt)
+    mt = hl.vds.to_dense_mt(vds)
     mt = mt.filter_rows(hl.len(mt.alleles) > 1)
+
+    # Filter samples
+    mt = mt.filter_cols(hl.len(sample_qc_ht[mt.col_key].filters) > 0, keep=False)
+    mt = mt.filter_cols(hl.is_defined(relateds_to_drop_ht[mt.col_key]), keep=False)
 
     logging.info('Computing adj and sex adjusted genotypes...')
     mt = mt.annotate_entries(
@@ -71,12 +77,12 @@ def frequency_annotations(
 
     logging.info('Generating frequency data...')
 
-    mt = _compute_age_hists(mt)
+    mt = _compute_age_hists(mt, sample_qc_ht)
 
     mt = annotate_freq(
         mt,
-        sex_expr=mt.meta.sex_karyotype,
-        pop_expr=mt.meta.pop,
+        sex_expr=sample_qc_ht[mt.col_key].sex_karyotype,
+        pop_expr=inferred_pop_ht[mt.col_key].pop,
         downsamplings=DOWNSAMPLINGS,
     )
 
@@ -104,10 +110,10 @@ def frequency_annotations(
     return freq_ht
 
 
-def _compute_age_hists(mt: hl.MatrixTable) -> hl.MatrixTable:
+def _compute_age_hists(mt: hl.MatrixTable, sample_qc_ht: hl.Table) -> hl.MatrixTable:
     logging.info('Computing age histograms for each variant...')
     try:
-        mt = mt.annotate_cols(age=hl.float64(mt.meta.age))
+        mt = mt.annotate_cols(age=hl.float64(sample_qc_ht[mt.col_key].age))
     except AttributeError:
         pass
     else:

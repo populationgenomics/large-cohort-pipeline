@@ -115,7 +115,7 @@ class Relatedness(CohortStage):
     def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
         return dict(
             relatedness=get_workflow().prefix / 'relatedness.ht',
-            relateds_to_drop=get_workflow().prefix / 'relateds-to-drop.ht',
+            relateds_to_drop=get_workflow().prefix / 'relateds_to_drop.ht',
         )
 
     def queue_jobs(self, cohort: Cohort, inputs: StageInput) -> StageOutput | None:
@@ -283,7 +283,7 @@ class LoadVqsr(CohortStage):
         return self.make_outputs(cohort, data=self.expected_outputs(cohort), jobs=[j])
 
 
-@stage(required_stages=[Combiner, SampleQC, Relatedness, Vqsr])
+@stage(required_stages=[Combiner, SampleQC, Relatedness, Vqsr, Ancestry])
 class Frequencies(CohortStage):
     def expected_outputs(self, cohort: Cohort) -> dict[str, Path]:
         return get_workflow().prefix / 'frequencies.ht'
@@ -300,6 +300,9 @@ class Frequencies(CohortStage):
                 sample_qc_ht_path=inputs.as_path(cohort, stage=SampleQC),
                 relateds_to_drop_ht_path=inputs.as_path(
                     cohort, stage=Relatedness, id='relateds_to_drop'
+                ),
+                inferred_pop_ht_path=inputs.as_path(
+                    cohort, stage=Ancestry, id='inferred_pop'
                 ),
                 out_ht_path=self.expected_outputs(cohort),
             ),
