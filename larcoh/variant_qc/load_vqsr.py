@@ -2,8 +2,8 @@ import hail as hl
 import logging
 
 from cpg_utils import Path
+from cpg_utils.hail_batch import genome_build
 from cpg_utils.workflows.utils import can_reuse
-from gnomad.utils.sparse_mt import split_info_annotation
 
 
 def run(
@@ -23,11 +23,14 @@ def load_vqsr(
     if can_reuse(out_ht_path):
         return hl.read_table(str(out_ht_path))
 
-    logging.info(f'Importing VQSR annotations...')
+    logging.info(
+        f'AS-VQSR: importing annotations from a site-only VCF {site_only_vcf_path}'
+    )
     ht = hl.import_vcf(
         str(site_only_vcf_path),
-        reference_genome='GRCh38',
+        reference_genome=genome_build(),
     ).rows()
+
     # VCF has SB fields as float in header:
     # > ##INFO=<ID=SB,Number=1,Type=Float,Description="Strand Bias">
     # Even though they are lists of ints, e.g. SB=6,11,2,0
@@ -38,26 +41,14 @@ def load_vqsr(
     # never attempt to actually parse it.
     ht = ht.annotate(info=ht.info.drop('SB'))
 
-    # some numeric fields are loaded as strings, so converting them to ints and floats
-    ht = ht.annotate(
-        info=ht.info.annotate(
-            AS_VQSLOD=ht.info.AS_VQSLOD.map(hl.float),
-            AS_SB_TABLE=ht.info.AS_SB_TABLE.split(r'\|').map(
-                lambda x: hl.if_else(
-                    x == '', hl.missing(hl.tarray(hl.tint32)), x.split(',').map(hl.int)
-                )
-            ),
-        ),
-    )
-    unsplit_count = ht.count()
+    # Dropping also all INFO/AS* annotations as well as InbreedingCoeff, as they are
+    # causing problems splitting multiallelics after parsing by Hail, when Hail attempts
+    # to subset them by allele index, and running into index out of bounds:
+    # `HailException: array index out of bounds: index=1, length=1`
+    ht = ht.annotate(info=ht.info.drop(*[f for f in ht.info if f.startswith('AS_')]))
 
+    unsplit_count = ht.count()
     ht = hl.split_multi_hts(ht)
-    ht = ht.annotate(
-        info=ht.info.annotate(**split_info_annotation(ht.info, ht.a_index)),
-    )
-    ht = ht.annotate(
-        filters=ht.filters.union(hl.set([ht.info.AS_FilterStatus])),
-    )
     ht.write(str(out_ht_path), overwrite=True)
     ht = hl.read_table(str(out_ht_path))
     logging.info(f'Wrote split HT to {out_ht_path}')
