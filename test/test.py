@@ -39,7 +39,8 @@ def _set_config(results_prefix: Path, extra_conf: dict | None = None):
             'larcoh': {
                 'sample_qc_cutoffs': {
                     'min_n_snps': 2500,  # to make it pass for toy subset
-                }
+                },
+                'n_pcs': 2,
             },
             'hail': {
                 'billing_project': 'thousand-genomes',

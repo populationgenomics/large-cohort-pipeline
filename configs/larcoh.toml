@@ -7,6 +7,8 @@ scatter_count = 50
 min_pop_prob = 0.5
 # maximum kin threshold to be considered unrelated
 max_kin = 0.2
+# number of principal components
+n_pcs = 16
 # sample metadata tag to get population label (continental_pop, subcontinental_pop)
 pop_tag = 'continental_pop'
 

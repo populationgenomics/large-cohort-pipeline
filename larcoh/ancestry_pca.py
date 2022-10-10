@@ -31,8 +31,8 @@ def run(
         'prob_<pop>': float64 (for each population label)
     """
     min_pop_prob = get_config()['larcoh']['min_pop_prob']
+    n_pcs = get_config()['larcoh']['n_pcs']
     tag = get_config()['larcoh'].get('pop_tag', 'continental_pop')
-    n_pcs = 16
     mt = hl.read_matrix_table(str(dense_mt_path))
     sample_qc_ht = hl.read_table(str(sample_qc_ht_path))
     relateds_to_drop_ht = hl.read_table(str(relateds_to_drop_ht_path))
