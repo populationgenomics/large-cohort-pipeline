@@ -40,7 +40,7 @@ def _set_config(results_prefix: Path, extra_conf: dict | None = None):
                 'sample_qc_cutoffs': {
                     'min_n_snps': 2500,  # to make it pass for toy subset
                 },
-                'n_pcs': 2,
+                'n_pcs': 3,  # minimal allowed number
             },
             'hail': {
                 'billing_project': 'thousand-genomes',
@@ -147,15 +147,15 @@ def test_larcoh(mocker: MockFixture):
         inferred_pop_ht_path=inferred_pop_ht_path,
     )
 
-    vcf_path = results_prefix / 'siteonly.vcf.bgz'
+    siteonly_vcf_path = results_prefix / 'siteonly.vcf.bgz'
     site_only_vcf.run(
         vds_path=vds_path,
         sample_qc_ht_path=sample_qc_ht_path,
         relateds_to_drop_ht_path=relateds_to_drop_ht_path,
-        out_vcf_path=vcf_path,
+        out_vcf_path=siteonly_vcf_path,
         tmp_prefix=results_prefix / 'tmp',
     )
 
     assert exists(vds_path)
     assert exists(results_prefix / 'plots' / 'dataset_pc1.html')
-    assert exists(vcf_path)
+    assert exists(siteonly_vcf_path)

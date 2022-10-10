@@ -109,7 +109,8 @@ def _run_pca_ancestry_analysis(
     # Adjusting the number of principal components not to exceed the
     # number of samples
     samples_to_drop_num = 0 if sample_to_drop_ht is None else sample_to_drop_ht.count()
-    n_pcs = min(n_pcs, mt.cols().count() - samples_to_drop_num)
+    min_n_pcs = 3  # for one PC1 vs PC2 plot
+    n_pcs = min(min_n_pcs, n_pcs, mt.cols().count() - samples_to_drop_num)
 
     logging.info(f'mt.s: {mt.s.collect()}')
     if sample_to_drop_ht:
