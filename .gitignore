@@ -11,14 +11,11 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-downloads/
 eggs/
 .eggs/
 lib/
 lib64/
-parts/
 sdist/
-var/
 wheels/
 pip-wheel-metadata/
 share/python-wheels/
@@ -26,18 +23,17 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-notebooks
+notebooks/
+*.ipynb
+playground/
 .idea
 .DS_Store
 .ipynb_checkpoints/
 .snakemake
 hail-*.log
-playground/
 *.BAK
 
 .env
-libs
 .vscode/
 
-*.ipynb
 nagim_qc.Rmd
