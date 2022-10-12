@@ -1,0 +1,6 @@
+bump2version
+pre-commit
+pylint
+black
+pytest
+pytest-mock
