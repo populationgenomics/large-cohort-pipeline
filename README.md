@@ -161,7 +161,7 @@ Row fields:
 Key: ['s']
 ``` 
 
-Plots for PCA and loadings are written to `gs://cpg-prophecy-test-web/larcoh/v01/ancestry/*`, a bucket that is exposed as https://test-web.populationgenomics.org.au/prophecy/larcoh/ancestry/*
+Plots for PCA and loadings are written to `gs://cpg-prophecy-test-web/larcoh/v01/ancestry/*`, a bucket that is exposed as `https://test-web.populationgenomics.org.au/prophecy/larcoh/ancestry/*`.
  
 ### Dense subset
 
