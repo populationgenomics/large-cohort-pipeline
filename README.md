@@ -178,7 +178,7 @@ Variants from good quality samples are filtered using the [AS-VQSR method](https
    * SNVs:   `AS_FS`, `AS_SOR`, `AS_ReadPosRankSum`, `AS_MQRankSum`, `AS_QD`, `AS_MQ`,
    * Indels: `AS_FS`, `AS_SOR`, `AS_ReadPosRankSum`, `AS_MQRankSum`, `AS_QD`.
    
-1. THe models are applied to the VCFs and combine them back into one VCF.
+1. The models are applied to the VCFs and combine them back into one VCF.
    
 1. VCF is converted back into a sites-only locus-level Hail table `gs://cpg-prophecy-test/larcoh/v01/vqsr.ht`, with split multiallelics.
 
