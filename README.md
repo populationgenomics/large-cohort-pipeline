@@ -245,7 +245,7 @@ Key: ['locus', 'alleles']
 ```
 
 
-### Gnomad QC
+### gnomAD QC
 
 The workflow is largely inspired by [the Hail pipeline used for the QC of gnomAD releases](https://github.com/broadinstitute/gnomad_qc). Good summaries of gnomAD QC can be found in gnomAD update blog posts:
 
